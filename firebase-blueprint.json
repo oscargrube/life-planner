@@ -1,0 +1,71 @@
+{
+  "entities": {
+    "Idea": {
+      "title": "Idea",
+      "description": "An idea collected for personal life planning",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "category": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["new", "evolving", "converted", "archived"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "title", "category"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A concrete task developed from an idea or created directly",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "category": { "type": "string", "maxLength": 50 },
+        "recurrence": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"] },
+        "completed": { "type": "boolean" },
+        "dueDate": { "type": "string", "maxLength": 50 },
+        "sourceIdeaId": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "title", "category", "completed"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "A scheduled calendar event with time and optional recurrence",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "date": { "type": "string", "maxLength": 20 },
+        "time": { "type": "string", "maxLength": 10 },
+        "durationMinutes": { "type": "number" },
+        "category": { "type": "string", "maxLength": 50 },
+        "recurrence": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"] },
+        "sourceTaskId": { "type": "string", "maxLength": 100 },
+        "sourceIdeaId": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "title", "date", "time", "category"]
+    }
+  },
+  "firestore": {
+    "/ideas/{ideaId}": {
+      "schema": "Idea",
+      "description": "User ideas collection"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "User tasks collection"
+    },
+    "/events/{eventId}": {
+      "schema": "Event",
+      "description": "User calendar events collection"
+    }
+  }
+}
