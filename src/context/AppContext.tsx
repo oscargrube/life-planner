@@ -14,6 +14,9 @@ import {
   subscribeToIdeas,
   subscribeToTasks,
   subscribeToEvents,
+  signUpWithEmail,
+  signInWithEmail,
+  resetPassword,
   addIdeaToFirestore,
   updateIdeaInFirestore,
   deleteIdeaFromFirestore,
@@ -24,7 +27,6 @@ import {
   updateEventInFirestore,
   deleteEventFromFirestore,
 } from '../firebase/service';
-import { INITIAL_IDEAS, INITIAL_TASKS, INITIAL_EVENTS } from '../data/initialData';
 
 interface AppContextType {
   user: FirebaseUser | null;
@@ -41,6 +43,10 @@ interface AppContextType {
   events: CalendarEvent[];
 
   // Modals & Forms
+  isAuthModalOpen: boolean;
+  openAuthModal: () => void;
+  closeAuthModal: () => void;
+
   selectedIdeaForConversion: Idea | null;
   openConvertIdeaModal: (idea: Idea) => void;
   closeConvertIdeaModal: () => void;
@@ -64,6 +70,9 @@ interface AppContextType {
 
   // Actions
   loginWithGoogle: () => Promise<void>;
+  loginWithEmail: (email: string, pass: string) => Promise<void>;
+  registerWithEmail: (email: string, pass: string, name?: string) => Promise<void>;
+  sendResetPasswordEmail: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   addIdea: (data: { title: string; description?: string; category: Category }) => Promise<void>;
   updateIdea: (id: string, updates: Partial<Idea>) => Promise<void>;
@@ -112,20 +121,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Local fallback storage states
   const [ideas, setIdeas] = useState<Idea[]>(() => {
     const saved = localStorage.getItem('lp_ideas');
-    return saved ? JSON.parse(saved) : INITIAL_IDEAS;
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
   });
 
   const [tasks, setTasks] = useState<Task[]>(() => {
     const saved = localStorage.getItem('lp_tasks');
-    return saved ? JSON.parse(saved) : INITIAL_TASKS;
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
   });
 
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     const saved = localStorage.getItem('lp_events');
-    return saved ? JSON.parse(saved) : INITIAL_EVENTS;
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
   });
 
   // Modals state
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [selectedIdeaForConversion, setSelectedIdeaForConversion] = useState<Idea | null>(null);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
@@ -137,6 +168,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [isIdeaModalOpen, setIsIdeaModalOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
+
+  const openAuthModal = () => setIsAuthModalOpen(true);
+  const closeAuthModal = () => setIsAuthModalOpen(false);
 
   // Sync to local storage for guest offline mode
   useEffect(() => {
@@ -164,6 +198,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsAuthReady(true);
       if (currentUser) {
         setIsFirebaseActive(true);
+        setIsAuthModalOpen(false);
       }
     });
     return () => unsubscribe();
@@ -179,40 +214,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       unsubIdeas = subscribeToIdeas(user.uid, (firestoreIdeas) => {
-        if (firestoreIdeas.length > 0) {
-          setIdeas(firestoreIdeas);
-        } else {
-          // If Firestore is empty for this user, migrate current local ideas or sample ideas
-          const toSeed = ideas.length > 0 ? ideas : INITIAL_IDEAS;
-          toSeed.forEach((idea, idx) => {
-            const uniqueId = `idea-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`;
-            addIdeaToFirestore({ ...idea, id: uniqueId, userId: user.uid });
-          });
-        }
+        setIdeas(firestoreIdeas);
       });
 
       unsubTasks = subscribeToTasks(user.uid, (firestoreTasks) => {
-        if (firestoreTasks.length > 0) {
-          setTasks(firestoreTasks);
-        } else {
-          const toSeed = tasks.length > 0 ? tasks : INITIAL_TASKS;
-          toSeed.forEach((task, idx) => {
-            const uniqueId = `task-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`;
-            addTaskToFirestore({ ...task, id: uniqueId, userId: user.uid });
-          });
-        }
+        setTasks(firestoreTasks);
       });
 
       unsubEvents = subscribeToEvents(user.uid, (firestoreEvents) => {
-        if (firestoreEvents.length > 0) {
-          setEvents(firestoreEvents);
-        } else {
-          const toSeed = events.length > 0 ? events : INITIAL_EVENTS;
-          toSeed.forEach((evt, idx) => {
-            const uniqueId = `event-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`;
-            addEventToFirestore({ ...evt, id: uniqueId, userId: user.uid });
-          });
-        }
+        setEvents(firestoreEvents);
       });
     } catch (err) {
       console.warn('Firestore subscription notice:', err);
@@ -229,9 +239,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const loginWithGoogle = async () => {
     try {
       await signInWithGoogle();
+      setIsAuthModalOpen(false);
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('Google login failed:', error);
+      throw error;
     }
+  };
+
+  const loginWithEmail = async (email: string, pass: string) => {
+    await signInWithEmail(email, pass);
+    setIsAuthModalOpen(false);
+  };
+
+  const registerWithEmail = async (email: string, pass: string, name?: string) => {
+    await signUpWithEmail(email, pass, name);
+    setIsAuthModalOpen(false);
+  };
+
+  const sendResetPasswordEmail = async (email: string) => {
+    await resetPassword(email);
   };
 
   const logout = async () => {
@@ -239,11 +265,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await logOut();
       setUser(null);
       const savedIdeas = localStorage.getItem('lp_ideas');
-      setIdeas(savedIdeas ? JSON.parse(savedIdeas) : INITIAL_IDEAS);
+      setIdeas(savedIdeas ? JSON.parse(savedIdeas) : []);
       const savedTasks = localStorage.getItem('lp_tasks');
-      setTasks(savedTasks ? JSON.parse(savedTasks) : INITIAL_TASKS);
+      setTasks(savedTasks ? JSON.parse(savedTasks) : []);
       const savedEvents = localStorage.getItem('lp_events');
-      setEvents(savedEvents ? JSON.parse(savedEvents) : INITIAL_EVENTS);
+      setEvents(savedEvents ? JSON.parse(savedEvents) : []);
     } catch (error) {
       console.error('Logout failed:', error);
     }
@@ -525,6 +551,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         tasks,
         events,
 
+        isAuthModalOpen,
+        openAuthModal,
+        closeAuthModal,
+
         selectedIdeaForConversion,
         openConvertIdeaModal,
         closeConvertIdeaModal,
@@ -547,6 +577,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         closeIdeaModal,
 
         loginWithGoogle,
+        loginWithEmail,
+        registerWithEmail,
+        sendResetPasswordEmail,
         logout,
         addIdea,
         updateIdea,

@@ -231,7 +231,7 @@ export const TasksView: React.FC = () => {
                         )}
 
                         {task.dueDate && (
-                          <span className="text-[10px] font-mono text-[#143d2b] bg-[#edf5f0] border border-[#cfe0d5] px-2 py-0.5 rounded-md">
+                          <span className="text-[10px] font-semibold text-[#143d2b] bg-[#edf5f0] border border-[#cfe0d5] px-2 py-0.5 rounded-md">
                             Fällig: {task.dueDate}
                           </span>
                         )}

@@ -179,7 +179,7 @@ export const FinancesWishesView: React.FC = () => {
                         {t.title}
                       </span>
                       {t.dueDate && (
-                        <span className="font-mono text-[10px] text-stone-500">
+                        <span className="text-[10px] font-semibold text-stone-500">
                           {t.dueDate}
                         </span>
                       )}
@@ -228,10 +228,10 @@ export const FinancesWishesView: React.FC = () => {
                       className="p-3 bg-amber-50/40 rounded-xl border border-amber-200/60 flex items-center justify-between text-xs"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-amber-900">{e.time}</span>
+                        <span className="font-bold text-amber-900">{e.time}</span>
                         <span className="font-medium text-stone-900">{e.title}</span>
                       </div>
-                      <span className="text-[11px] text-stone-500 font-mono">{e.date}</span>
+                      <span className="text-[11px] text-stone-500 font-medium">{e.date}</span>
                     </div>
                   ))}
                 </div>

@@ -93,18 +93,6 @@ export const CalendarView: React.FC = () => {
     }
   }, [viewMode]);
 
-  // Date navigation helpers
-  const goToToday = () => {
-    const today = new Date();
-    setCurrentDate(today);
-    const target = Math.max(0, currentTimeTop - 140);
-    if (timelineScrollRef.current && viewMode === 'week') {
-      timelineScrollRef.current.scrollTo({ top: target, behavior: 'smooth' });
-    } else if (dayTimelineScrollRef.current && viewMode === 'day') {
-      dayTimelineScrollRef.current.scrollTo({ top: target, behavior: 'smooth' });
-    }
-  };
-
   const navigateDate = (direction: 'prev' | 'next') => {
     const delta = direction === 'next' ? 1 : -1;
     const newD = new Date(currentDate);
@@ -323,7 +311,7 @@ export const CalendarView: React.FC = () => {
     return getEventLayout(dayEvts);
   }, [filteredEvents, dayViewDateString]);
 
-  // Drag and drop handlers - optimized for smoothness
+  // Drag and drop handlers
   const handleDragStartEvent = (e: React.DragEvent, eventItem: CalendarEvent) => {
     setDraggedItem({ type: 'event', id: eventItem.id, data: eventItem });
     e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'event', id: eventItem.id }));
@@ -355,7 +343,6 @@ export const CalendarView: React.FC = () => {
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    // Only clear if leaving the container to outside
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setDragOverDay(null);
       setDragOverHour(null);
@@ -388,7 +375,6 @@ export const CalendarView: React.FC = () => {
 
   const weekdayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
-  // Formatted header titles depending on view mode
   const currentKW = getCalendarWeek(currentDate);
   const weekStart = weekDays[0]?.dateObj;
   const weekEnd = weekDays[6]?.dateObj;
@@ -412,17 +398,6 @@ export const CalendarView: React.FC = () => {
     return `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
   };
 
-  const getViewModeDescription = () => {
-    switch (viewMode) {
-      case 'day':
-        return 'Tagesansicht';
-      case 'week':
-        return 'Wochenansicht mit Echtzeit-Indikator';
-      case 'month':
-        return 'Monatsübersicht';
-    }
-  };
-
   const getPrevNextTooltip = (dir: 'prev' | 'next') => {
     const dirWord = dir === 'prev' ? 'Vorheriger' : 'Nächster';
     const dirWordFem = dir === 'prev' ? 'Vorherige' : 'Nächste';
@@ -433,57 +408,41 @@ export const CalendarView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-[#f8faf8] text-[#171c19]">
-      {/* Top Calendar Toolbar */}
-      <header className="px-6 py-3.5 bg-white border-b border-[#e2e8e3] flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-xs relative">
+      {/* Top Calendar Toolbar - Clean & Responsive */}
+      <header className="px-4 sm:px-6 py-3 bg-white border-b border-[#e2e8e3] flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-xs">
         {/* Left: Navigation and Date Title */}
-        <div className="flex items-center gap-3.5">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-[#edf5f0] border border-[#cfe0d5] text-[#174e36] flex items-center justify-center shadow-xs">
-              <CalendarIcon className="w-5 h-5 text-[#174e36]" />
+            <div className="w-9 h-9 rounded-xl bg-[#edf5f0] border border-[#cfe0d5] text-[#174e36] flex items-center justify-center shadow-xs">
+              <CalendarIcon className="w-4.5 h-4.5 text-[#174e36]" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-[#171c19] tracking-tight leading-tight">
-                  {getHeaderTitle()}
-                </h2>
-                {/* Native mini date jump picker */}
-                <label
-                  title="Zu einem bestimmten Datum springen"
-                  className="cursor-pointer text-[#6b7d72] hover:text-[#174e36] transition-colors p-1 rounded-lg hover:bg-[#edf5f0]"
-                >
-                  <CalendarIcon className="w-3.5 h-3.5" />
-                  <input
-                    type="date"
-                    value={currentDate.toISOString().split('T')[0]}
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        const [y, m, d] = e.target.value.split('-').map(Number);
-                        setCurrentDate(new Date(y, m - 1, d));
-                      }
-                    }}
-                    className="sr-only"
-                  />
-                </label>
-              </div>
-              <p className="text-xs text-[#52645a] font-medium flex items-center gap-1.5 mt-0.5">
-                <span className="w-2 h-2 rounded-full bg-[#174e36] animate-pulse" />
-                <span>{getViewModeDescription()}</span>
-              </p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-[#171c19] tracking-tight leading-tight">
+                {getHeaderTitle()}
+              </h2>
+              {/* Native mini date jump picker */}
+              <label
+                title="Zu einem bestimmten Datum springen"
+                className="cursor-pointer text-[#6b7d72] hover:text-[#174e36] transition-colors p-1 rounded-lg hover:bg-[#edf5f0]"
+              >
+                <CalendarIcon className="w-4 h-4" />
+                <input
+                  type="date"
+                  value={currentDate.toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      const [y, m, d] = e.target.value.split('-').map(Number);
+                      setCurrentDate(new Date(y, m - 1, d));
+                    }
+                  }}
+                  className="sr-only"
+                />
+              </label>
             </div>
           </div>
 
-          {/* Navigation Controls: Heute & Previous / Next */}
-          <div className="flex items-center bg-[#f4f7f5] border border-[#d8e2db] rounded-xl p-1 gap-1 ml-1 shadow-xs">
-            <button
-              onClick={goToToday}
-              className="px-3 py-1.5 text-xs font-bold text-[#174e36] hover:bg-white rounded-lg transition-all flex items-center gap-1.5 cursor-pointer hover:shadow-xs active:scale-95"
-              title="Zum heutigen Tag springen"
-            >
-              <span>Heute</span>
-            </button>
-
-            <div className="h-4 w-[1px] bg-[#d8e2db]" />
-
+          {/* Navigation Controls: Previous / Next (Heute button removed as requested) */}
+          <div className="flex items-center bg-[#f4f7f5] border border-[#d8e2db] rounded-xl p-1 gap-0.5 shadow-xs">
             <button
               onClick={() => navigateDate('prev')}
               className="p-1.5 hover:bg-white rounded-lg text-[#52645a] hover:text-[#171c19] transition-all cursor-pointer hover:shadow-xs active:scale-95"
@@ -504,47 +463,45 @@ export const CalendarView: React.FC = () => {
           </div>
         </div>
 
-        {/* Center: View Mode Switcher in explicit order: Tag, Woche, Monat */}
-        <div className="flex items-center justify-center md:absolute md:left-1/2 md:-translate-x-1/2 order-3 md:order-none">
-          <div className="flex items-center bg-[#f4f7f5] border border-[#d8e2db] rounded-xl p-1 shadow-xs">
-            <button
-              id="calendar-view-mode-day"
-              onClick={() => setViewMode('day')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                viewMode === 'day'
-                  ? 'bg-[#174e36] text-white shadow-xs font-semibold'
-                  : 'text-[#4c5c53] hover:text-[#171c19]'
-              }`}
-            >
-              Tag
-            </button>
-            <button
-              id="calendar-view-mode-week"
-              onClick={() => setViewMode('week')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                viewMode === 'week'
-                  ? 'bg-[#174e36] text-white shadow-xs font-semibold'
-                  : 'text-[#4c5c53] hover:text-[#171c19]'
-              }`}
-            >
-              Woche
-            </button>
-            <button
-              id="calendar-view-mode-month"
-              onClick={() => setViewMode('month')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                viewMode === 'month'
-                  ? 'bg-[#174e36] text-white shadow-xs font-semibold'
-                  : 'text-[#4c5c53] hover:text-[#171c19]'
-              }`}
-            >
-              Monat
-            </button>
-          </div>
+        {/* Center/Flexible: View Mode Switcher */}
+        <div className="flex items-center bg-[#f4f7f5] border border-[#d8e2db] rounded-xl p-1 shadow-xs">
+          <button
+            id="calendar-view-mode-day"
+            onClick={() => setViewMode('day')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              viewMode === 'day'
+                ? 'bg-[#174e36] text-white shadow-xs font-semibold'
+                : 'text-[#4c5c53] hover:text-[#171c19]'
+            }`}
+          >
+            Tag
+          </button>
+          <button
+            id="calendar-view-mode-week"
+            onClick={() => setViewMode('week')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              viewMode === 'week'
+                ? 'bg-[#174e36] text-white shadow-xs font-semibold'
+                : 'text-[#4c5c53] hover:text-[#171c19]'
+            }`}
+          >
+            Woche
+          </button>
+          <button
+            id="calendar-view-mode-month"
+            onClick={() => setViewMode('month')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              viewMode === 'month'
+                ? 'bg-[#174e36] text-white shadow-xs font-semibold'
+                : 'text-[#4c5c53] hover:text-[#171c19]'
+            }`}
+          >
+            Monat
+          </button>
         </div>
 
         {/* Right side: New Event Button + Toggle Tasks Sidebar */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <button
             id="btn-new-calendar-event"
             onClick={() => {
@@ -579,18 +536,18 @@ export const CalendarView: React.FC = () => {
       {/* Main Calendar Body */}
       <div className="flex-1 flex overflow-hidden">
         {/* Calendar Area */}
-        <div className="flex-1 flex flex-col overflow-hidden p-4">
+        <div className="flex-1 flex flex-col overflow-hidden p-3 sm:p-4">
           {/* ===================== TAG (DAY) VIEW ===================== */}
           {viewMode === 'day' && (
             <div className="bg-white rounded-2xl border border-[#e2e8e3] shadow-xs flex-1 flex flex-col overflow-hidden">
               {/* Day Header */}
               <div className="px-6 py-3 border-b border-[#e2e8e3] bg-[#fafcfa] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#174e36] text-white font-bold text-sm shadow-xs">
+                  <div className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#174e36] text-white font-extrabold text-base shadow-xs">
                     {currentDate.getDate()}
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-[#171c19]">
+                    <h3 className="text-base font-bold text-[#171c19]">
                       {currentDate.toLocaleDateString('de-DE', {
                         weekday: 'long',
                         day: 'numeric',
@@ -598,9 +555,6 @@ export const CalendarView: React.FC = () => {
                         year: 'numeric',
                       })}
                     </h3>
-                    <p className="text-[11px] text-[#52645a]">
-                      Klicke auf eine Uhrzeit, um direkt einen Termin anzulegen
-                    </p>
                   </div>
                 </div>
 
@@ -609,7 +563,7 @@ export const CalendarView: React.FC = () => {
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#174e36] bg-[#edf5f0] hover:bg-[#dbeee1] border border-[#cfe0d5] rounded-xl transition-all cursor-pointer shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Termin für heute eintragen</span>
+                  <span>Termin eintragen</span>
                 </button>
               </div>
 
@@ -619,27 +573,27 @@ export const CalendarView: React.FC = () => {
                 className="flex-1 overflow-y-auto overflow-x-hidden relative bg-white"
               >
                 <div
-                  className="grid grid-cols-[68px_1fr] divide-x divide-[#e8eee9] relative"
+                  className="grid grid-cols-[72px_1fr] divide-x divide-[#e8eee9] relative"
                   style={{ height: `${24 * HOUR_HEIGHT}px` }}
                 >
-                  {/* Left Column: Hourly Time Labels */}
+                  {/* Left Column: Hourly Time Labels (Larger & Non-Technical) */}
                   <div className="bg-[#fafcfa] select-none relative divide-y divide-[#e8eee9]">
                     {HOURS.map((hour) => (
                       <div
                         key={hour}
-                        className="relative border-b border-[#e8eee9] flex items-start justify-end pr-2 pt-1"
+                        className="relative border-b border-[#e8eee9] flex items-start justify-end pr-2.5 pt-1"
                         style={{ height: `${HOUR_HEIGHT}px` }}
                       >
-                        <span className="text-[11px] font-mono text-[#6b7d72] font-medium">
+                        <span className="text-xs font-bold text-[#52645a]">
                           {String(hour).padStart(2, '0')}:00
                         </span>
                       </div>
                     ))}
 
-                    {/* Current time badge (if day is today) */}
+                    {/* Current time badge */}
                     {dayViewDateString === todayStr && (
                       <div
-                        className="absolute right-1 z-30 transform -translate-y-1/2 flex items-center gap-1 bg-[#174e36] border border-[#143d2b] text-white px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold shadow-xs"
+                        className="absolute right-1 z-30 transform -translate-y-1/2 flex items-center gap-1 bg-[#174e36] border border-[#143d2b] text-white px-2 py-0.5 rounded-full text-xs font-bold shadow-xs"
                         style={{ top: `${currentTimeTop}px` }}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-ping" />
@@ -655,7 +609,6 @@ export const CalendarView: React.FC = () => {
                     onDrop={(e) => handleDrop(e, dayViewDateString)}
                     className="relative transition-colors bg-white"
                   >
-                    {/* Hourly background grid cells - Clickable to create event! */}
                     {HOURS.map((hour) => {
                       const hourStr = `${String(hour).padStart(2, '0')}:00`;
                       const isHovered =
@@ -683,11 +636,8 @@ export const CalendarView: React.FC = () => {
                           style={{ height: `${HOUR_HEIGHT}px` }}
                           title={`Klicken, um Termin um ${hourStr} Uhr zu erstellen`}
                         >
-                          {/* Half-hour dashed line */}
                           <div className="absolute top-1/2 left-0 right-0 border-b border-[#f1f5f2] border-dashed pointer-events-none" />
-
-                          {/* Subtle hover slot hint */}
-                          <div className="absolute left-3 top-2 opacity-0 group-hover/slot:opacity-80 transition-opacity pointer-events-none flex items-center gap-1.5 text-xs text-[#174e36] font-medium">
+                          <div className="absolute left-3 top-2 opacity-0 group-hover/slot:opacity-80 transition-opacity pointer-events-none flex items-center gap-1.5 text-xs text-[#174e36] font-semibold">
                             <Plus className="w-3.5 h-3.5" />
                             <span>{hourStr} eintragen</span>
                           </div>
@@ -695,7 +645,7 @@ export const CalendarView: React.FC = () => {
                       );
                     })}
 
-                    {/* Smooth Drag Over Indicator Box */}
+                    {/* Drag Over Indicator Box */}
                     {dragOverDay === dayViewDateString && dragOverHour !== null && (
                       <div
                         className="absolute left-2 right-2 rounded-xl border-2 border-dashed border-[#174e36] bg-[#174e36]/10 z-20 pointer-events-none flex items-center gap-2 px-3 text-xs font-semibold text-[#174e36] transition-all duration-75 shadow-xs"
@@ -712,7 +662,7 @@ export const CalendarView: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Current Time Indicator Line (if today) */}
+                    {/* Current Time Indicator Line */}
                     {dayViewDateString === todayStr && (
                       <div
                         className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
@@ -723,7 +673,7 @@ export const CalendarView: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Events for this day */}
+                    {/* Positioned Events */}
                     {dayEventLayouts.map(
                       ({ event: evt, top, height, leftPercent, widthPercent }) => {
                         const conf =
@@ -750,7 +700,7 @@ export const CalendarView: React.FC = () => {
                           >
                             <div className="min-w-0">
                               <div className="flex items-center justify-between gap-1">
-                                <span className="font-mono text-[11px] font-bold opacity-90 shrink-0">
+                                <span className="text-xs font-bold text-[#174e36] opacity-90 shrink-0">
                                   {evt.time} ({evt.durationMinutes || 60} Min)
                                 </span>
                                 {evt.recurrence !== 'none' && (
@@ -780,35 +730,31 @@ export const CalendarView: React.FC = () => {
           {/* ===================== WOCHE (WEEK) VIEW ===================== */}
           {viewMode === 'week' && (
             <div className="bg-white rounded-2xl border border-[#e2e8e3] shadow-xs flex-1 flex flex-col overflow-hidden">
-              {/* Sticky Top Header with 7 Week Days */}
-              <div className="grid grid-cols-[68px_repeat(7,1fr)] border-b border-[#e2e8e3] bg-[#fafcfa] shrink-0 divide-x divide-[#e2e8e3]">
-                {/* Top-left corner: Time header */}
+              {/* Sticky Top Header with 7 Week Days - Larger Dates, No Term Count, No Heute Tag */}
+              <div className="grid grid-cols-[72px_repeat(7,1fr)] border-b border-[#e2e8e3] bg-[#fafcfa] shrink-0 divide-x divide-[#e2e8e3]">
+                {/* Top-left corner */}
                 <div className="py-3 px-2 flex flex-col items-center justify-center text-center">
-                  <Clock className="w-3.5 h-3.5 text-[#6b7d72]" />
-                  <span className="text-[10px] font-bold text-[#6b7d72] uppercase tracking-wider mt-0.5">
+                  <Clock className="w-4 h-4 text-[#6b7d72]" />
+                  <span className="text-xs font-bold text-[#6b7d72] uppercase tracking-wider mt-0.5">
                     Zeit
                   </span>
                 </div>
 
                 {/* 7 Days Headers */}
                 {weekDays.map((wd, i) => {
-                  const dayEventsCount = filteredEvents.filter(
-                    (e) => e.date === wd.dateString
-                  ).length;
-
                   return (
                     <div
                       key={wd.dateString}
                       onClick={() => {
                         openEventModal(undefined, wd.dateString, '10:00');
                       }}
-                      className={`py-2.5 px-3 flex flex-col items-center justify-center transition-colors cursor-pointer group/header ${
+                      className={`py-2.5 px-2 flex flex-col items-center justify-center transition-colors cursor-pointer group/header ${
                         wd.isToday ? 'bg-[#edf5f0]/60' : 'hover:bg-[#f4f7f5]/80'
                       }`}
                       title={`Klicken, um Termin für ${wd.dayLabel}, ${wd.dateString} einzutragen`}
                     >
                       <span
-                        className={`text-[11px] font-bold uppercase tracking-wider ${
+                        className={`text-xs font-bold uppercase tracking-wider ${
                           wd.isToday
                             ? 'text-[#174e36]'
                             : i >= 5
@@ -819,9 +765,9 @@ export const CalendarView: React.FC = () => {
                         {wd.dayLabel}
                       </span>
 
-                      <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className="flex items-center gap-1 mt-1">
                         <span
-                          className={`w-7 h-7 flex items-center justify-center rounded-xl text-sm font-bold transition-transform ${
+                          className={`w-8 h-8 flex items-center justify-center rounded-xl text-base font-extrabold transition-transform ${
                             wd.isToday
                               ? 'bg-[#174e36] text-white shadow-xs scale-105'
                               : 'text-[#171c19] group-hover/header:text-[#174e36]'
@@ -829,23 +775,7 @@ export const CalendarView: React.FC = () => {
                         >
                           {wd.dayNum}
                         </span>
-
-                        {wd.isToday && (
-                          <span className="text-[10px] font-semibold text-[#174e36] bg-[#edf5f0] px-1.5 py-0.5 rounded-md hidden md:inline border border-[#cfe0d5]">
-                            Heute
-                          </span>
-                        )}
                       </div>
-
-                      {dayEventsCount > 0 ? (
-                        <span className="text-[9px] font-medium text-[#6b7d72] mt-0.5">
-                          {dayEventsCount} {dayEventsCount === 1 ? 'Termin' : 'Termine'}
-                        </span>
-                      ) : (
-                        <span className="text-[9px] font-medium text-transparent group-hover/header:text-[#174e36] transition-colors mt-0.5">
-                          + Neu
-                        </span>
-                      )}
                     </div>
                   );
                 })}
@@ -857,18 +787,18 @@ export const CalendarView: React.FC = () => {
                 className="flex-1 overflow-y-auto overflow-x-hidden relative bg-white"
               >
                 <div
-                  className="grid grid-cols-[68px_repeat(7,1fr)] divide-x divide-[#e8eee9] relative"
+                  className="grid grid-cols-[72px_repeat(7,1fr)] divide-x divide-[#e8eee9] relative"
                   style={{ height: `${24 * HOUR_HEIGHT}px` }}
                 >
-                  {/* Left Column: Hourly Time Labels */}
+                  {/* Left Column: Hourly Time Labels (Larger & Non-Technical) */}
                   <div className="bg-[#fafcfa] select-none relative divide-y divide-[#e8eee9]">
                     {HOURS.map((hour) => (
                       <div
                         key={hour}
-                        className="relative border-b border-[#e8eee9] flex items-start justify-end pr-2 pt-1"
+                        className="relative border-b border-[#e8eee9] flex items-start justify-end pr-2.5 pt-1"
                         style={{ height: `${HOUR_HEIGHT}px` }}
                       >
-                        <span className="text-[11px] font-mono text-[#6b7d72] font-medium">
+                        <span className="text-xs font-bold text-[#52645a]">
                           {String(hour).padStart(2, '0')}:00
                         </span>
                       </div>
@@ -876,7 +806,7 @@ export const CalendarView: React.FC = () => {
 
                     {/* Left time badge for current time */}
                     <div
-                      className="absolute right-1 z-30 transform -translate-y-1/2 flex items-center gap-1 bg-[#174e36] border border-[#143d2b] text-white px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold shadow-xs"
+                      className="absolute right-1 z-30 transform -translate-y-1/2 flex items-center gap-1 bg-[#174e36] border border-[#143d2b] text-white px-1.5 py-0.5 rounded-full text-xs font-bold shadow-xs"
                       style={{ top: `${currentTimeTop}px` }}
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-ping" />
@@ -899,7 +829,6 @@ export const CalendarView: React.FC = () => {
                           wd.isToday ? 'bg-[#f4f8f5]/40' : 'bg-white'
                         } ${isOverDay ? 'bg-[#edf5f0]/30' : ''}`}
                       >
-                        {/* Hour background grid lines - CLICKABLE to create new event */}
                         {HOURS.map((hour) => {
                           const hourStr = `${String(hour).padStart(2, '0')}:00`;
                           const isHourHovered =
@@ -927,10 +856,7 @@ export const CalendarView: React.FC = () => {
                               style={{ height: `${HOUR_HEIGHT}px` }}
                               title={`Klicken, um Termin für ${wd.dayLabel}, ${hourStr} Uhr einzutragen`}
                             >
-                              {/* Half-hour dashed line */}
                               <div className="absolute top-1/2 left-0 right-0 border-b border-[#f1f5f2] border-dashed pointer-events-none" />
-
-                              {/* Subtle hover slot hint */}
                               <div className="absolute left-1.5 top-1 opacity-0 group-hover/slot:opacity-75 transition-opacity pointer-events-none flex items-center gap-1 text-[10px] text-[#174e36] font-semibold">
                                 <Plus className="w-2.5 h-2.5" />
                                 <span>{hourStr}</span>
@@ -939,7 +865,7 @@ export const CalendarView: React.FC = () => {
                           );
                         })}
 
-                        {/* Smooth Drop Indicator Ghost for this day column */}
+                        {/* Smooth Drop Indicator Ghost */}
                         {isOverDay && dragOverHour !== null && (
                           <div
                             className="absolute left-1 right-1 rounded-xl border-2 border-dashed border-[#174e36] bg-[#174e36]/10 z-20 pointer-events-none flex items-center gap-1 px-2 text-[10px] font-semibold text-[#174e36] transition-all duration-75 shadow-xs"
@@ -956,7 +882,7 @@ export const CalendarView: React.FC = () => {
                           </div>
                         )}
 
-                        {/* LIVE CURRENT TIME INDICATOR LINE ON TODAY'S COLUMN */}
+                        {/* LIVE CURRENT TIME INDICATOR LINE */}
                         {wd.isToday && (
                           <div
                             className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
@@ -967,7 +893,7 @@ export const CalendarView: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Positioned Events on Timeline */}
+                        {/* Positioned Events */}
                         {eventLayouts.map(
                           ({ event: evt, top, height, leftPercent, widthPercent }) => {
                             const conf =
@@ -994,7 +920,7 @@ export const CalendarView: React.FC = () => {
                               >
                                 <div className="min-w-0">
                                   <div className="flex items-center justify-between gap-1">
-                                    <span className="font-mono text-[10px] font-bold opacity-85 shrink-0">
+                                    <span className="text-[11px] font-bold text-[#174e36] opacity-90 shrink-0">
                                       {evt.time}
                                     </span>
                                     {evt.recurrence !== 'none' && (
@@ -1079,7 +1005,7 @@ export const CalendarView: React.FC = () => {
                         </span>
                       </div>
 
-                      {/* Event Chips (draggable) */}
+                      {/* Event Chips */}
                       <div className="space-y-1 overflow-y-auto flex-1 max-h-[85px]">
                         {dayEvents.map((evt) => {
                           const conf =
@@ -1098,7 +1024,7 @@ export const CalendarView: React.FC = () => {
                               title="Klicken zum Bearbeiten, ziehen zum Verschieben"
                             >
                               <div className="flex items-center gap-1.5 min-w-0 truncate">
-                                <span className="font-mono text-[10px] opacity-80 shrink-0 font-semibold">
+                                <span className="text-[10px] opacity-90 shrink-0 font-bold text-[#174e36]">
                                   {evt.time}
                                 </span>
                                 <span className="truncate">{evt.title}</span>
@@ -1118,32 +1044,31 @@ export const CalendarView: React.FC = () => {
           )}
         </div>
 
-        {/* Right Drawer: Drag & Drop Tasks Sidebar */}
+        {/* Right Drawer: Drag & Drop Tasks Sidebar (Narrower & Cleaner) */}
         {showTaskSidebar && (
           <aside
             id="calendar-tasks-drawer"
-            className="w-80 bg-white border-l border-[#e2e8e3] flex flex-col shrink-0 shadow-xs"
+            className="w-64 bg-white border-l border-[#e2e8e3] flex flex-col shrink-0 shadow-xs"
           >
-            {/* Clean Drawer Header: Tip and dragging prompt text removed as requested */}
-            <div className="p-4 border-b border-[#e2e8e3] flex items-center justify-between bg-white">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#edf5f0] text-[#174e36] flex items-center justify-center border border-[#cfe0d5]">
-                  <CheckSquare className="w-4 h-4 text-[#174e36]" />
+            <div className="p-3.5 border-b border-[#e2e8e3] flex items-center justify-between bg-white">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-[#edf5f0] text-[#174e36] flex items-center justify-center border border-[#cfe0d5]">
+                  <CheckSquare className="w-3.5 h-3.5 text-[#174e36]" />
                 </div>
-                <h3 className="text-sm font-bold text-[#171c19]">
+                <h3 className="text-xs font-bold text-[#171c19]">
                   Aufgaben einplanen
                 </h3>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#f4f7f5] text-[#52645a] border border-[#d8e2db]">
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#f4f7f5] text-[#52645a] border border-[#d8e2db]">
                 {unscheduledTasks.length}
               </span>
             </div>
 
-            {/* Task list for dragging into calendar */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-2.5 bg-[#f8faf8]">
+            {/* Task list for dragging into calendar (Smaller cards, no due dates) */}
+            <div className="flex-1 overflow-y-auto p-2.5 space-y-2 bg-[#f8faf8]">
               {unscheduledTasks.length === 0 ? (
-                <div className="text-center py-12 text-[#6b7d72] text-xs">
-                  Keine offenen Aufgaben vorhanden.
+                <div className="text-center py-10 text-[#6b7d72] text-xs">
+                  Keine offenen Aufgaben.
                 </div>
               ) : (
                 unscheduledTasks.map((task) => {
@@ -1157,30 +1082,25 @@ export const CalendarView: React.FC = () => {
                       draggable
                       onDragStart={(e) => handleDragStartTask(e, task)}
                       onDragEnd={handleDragEnd}
-                      className={`p-3 bg-white hover:bg-[#f6faf7] rounded-xl border border-[#e2e8e3] shadow-xs cursor-grab active:cursor-grabbing hover:border-[#174e36] hover:shadow-md transition-all group select-none ${
+                      className={`p-2.5 bg-white hover:bg-[#f6faf7] rounded-xl border border-[#e2e8e3] shadow-xs cursor-grab active:cursor-grabbing hover:border-[#174e36] hover:shadow-md transition-all group select-none ${
                         isBeingDragged ? 'opacity-40 scale-95 ring-2 ring-[#174e36]' : ''
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center justify-between mb-1">
                         <span
-                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${conf.badgeClass}`}
+                          className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${conf.badgeClass}`}
                         >
                           {task.category}
                         </span>
-                        <GripVertical className="w-3.5 h-3.5 text-[#8e9f94] group-hover:text-[#174e36]" />
+                        <GripVertical className="w-3 h-3 text-[#8e9f94] group-hover:text-[#174e36]" />
                       </div>
-                      <h4 className="text-xs font-semibold text-[#171c19]">
+                      <h4 className="text-xs font-semibold text-[#171c19] leading-snug">
                         {task.title}
                       </h4>
                       {task.description && (
-                        <p className="text-[11px] text-[#52645a] line-clamp-2 mt-1">
+                        <p className="text-[10px] text-[#52645a] line-clamp-2 mt-0.5">
                           {task.description}
                         </p>
-                      )}
-                      {task.dueDate && (
-                        <div className="mt-2 text-[10px] text-[#174e36] font-mono font-medium">
-                          Fällig: {task.dueDate}
-                        </div>
                       )}
                     </div>
                   );

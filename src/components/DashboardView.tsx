@@ -265,7 +265,7 @@ export const DashboardView: React.FC = () => {
                       className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer hover:shadow-xs transition-all ${conf.bgLight}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="font-mono text-xs font-bold px-2 py-1 bg-white/80 rounded-md">
+                        <div className="text-xs font-bold px-2 py-1 bg-white/80 rounded-md text-[#174e36]">
                           {evt.time}
                         </div>
                         <div>
@@ -342,7 +342,7 @@ export const DashboardView: React.FC = () => {
                               {task.category}
                             </span>
                             {task.dueDate && (
-                              <span className="font-mono">Fällig: {task.dueDate}</span>
+                              <span className="font-semibold">Fällig: {task.dueDate}</span>
                             )}
                             {task.recurrence !== 'none' && (
                               <span className="flex items-center gap-0.5">
@@ -434,7 +434,7 @@ export const DashboardView: React.FC = () => {
                     style={{ backgroundColor: item.config.color }}
                   />
                   <div className="text-xs font-bold text-stone-900">{item.category}</div>
-                  <div className="text-[11px] text-stone-500 font-mono mt-0.5">
+                  <div className="text-[11px] text-stone-500 font-semibold mt-0.5">
                     {item.total} Einträge
                   </div>
                 </div>

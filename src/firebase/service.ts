@@ -2,6 +2,10 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile,
   User as FirebaseUser,
 } from 'firebase/auth';
 import {
@@ -26,6 +30,38 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
     return result.user;
   } catch (error) {
     console.error('Google Sign-In Error:', error);
+    throw error;
+  }
+}
+
+export async function signUpWithEmail(email: string, pass: string, displayName?: string): Promise<FirebaseUser> {
+  try {
+    const result = await createUserWithEmailAndPassword(auth, email, pass);
+    if (displayName && result.user) {
+      await updateProfile(result.user, { displayName });
+    }
+    return result.user;
+  } catch (error) {
+    console.error('Email Sign-Up Error:', error);
+    throw error;
+  }
+}
+
+export async function signInWithEmail(email: string, pass: string): Promise<FirebaseUser> {
+  try {
+    const result = await signInWithEmailAndPassword(auth, email, pass);
+    return result.user;
+  } catch (error) {
+    console.error('Email Sign-In Error:', error);
+    throw error;
+  }
+}
+
+export async function resetPassword(email: string): Promise<void> {
+  try {
+    await sendPasswordResetEmail(auth, email);
+  } catch (error) {
+    console.error('Password Reset Error:', error);
     throw error;
   }
 }

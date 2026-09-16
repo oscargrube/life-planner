@@ -1,6 +1,0 @@
-{
-  "name": "Lebensplanung & Kalender",
-  "description": "Persönliche Lebensplanung: Ideen erfassen und zu Aufgaben oder Kalender-Ereignissen entwickeln mit Drag & Drop Kalender.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

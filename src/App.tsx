@@ -8,6 +8,7 @@ import { ConvertIdeaModal } from './components/ConvertIdeaModal';
 import { EventModal } from './components/EventModal';
 import { TaskModal } from './components/TaskModal';
 import { IdeaModal } from './components/IdeaModal';
+import { AuthModal } from './components/AuthModal';
 
 const AppContent: React.FC = () => {
   const { currentView } = useApp();
@@ -25,6 +26,7 @@ const AppContent: React.FC = () => {
       </main>
 
       {/* Global Modals */}
+      <AuthModal />
       <ConvertIdeaModal />
       <EventModal />
       <TaskModal />

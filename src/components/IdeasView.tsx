@@ -239,7 +239,7 @@ export const IdeasView: React.FC = () => {
                           <span>Weiterentwickelt</span>
                         </span>
                       ) : (
-                        <span className="text-[10px] text-[#6b7d72] font-mono">
+                        <span className="text-[10px] text-[#6b7d72] font-medium">
                           {new Date(idea.createdAt).toLocaleDateString('de-DE')}
                         </span>
                       )}
