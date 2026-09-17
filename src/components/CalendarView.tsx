@@ -11,6 +11,14 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { CalendarEvent, Task, CATEGORIES_CONFIG } from '../types';
+import {
+  formatDateKey,
+  getTodayDateKey,
+  parseDateKey,
+  getCalendarWeek,
+  getWeekDays,
+  getMonthCalendarDays,
+} from '../utils/dateUtils';
 
 type CalendarViewMode = 'day' | 'week' | 'month';
 
@@ -75,7 +83,7 @@ export const CalendarView: React.FC = () => {
     hour: '2-digit',
     minute: '2-digit',
   });
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = getTodayDateKey();
 
   // Scroll to current time or morning on view mode switch or initial load
   useEffect(() => {
@@ -95,7 +103,7 @@ export const CalendarView: React.FC = () => {
 
   const navigateDate = (direction: 'prev' | 'next') => {
     const delta = direction === 'next' ? 1 : -1;
-    const newD = new Date(currentDate);
+    const newD = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
     if (viewMode === 'month') {
       newD.setMonth(newD.getMonth() + delta);
     } else if (viewMode === 'week') {
@@ -108,107 +116,15 @@ export const CalendarView: React.FC = () => {
 
   // Week view calculations (European: Monday to Sunday)
   const weekDays = useMemo(() => {
-    const curr = new Date(currentDate);
-    const dayOfWeek = curr.getDay();
-    const distanceToMonday = (dayOfWeek + 6) % 7; // Monday is 0, Sunday is 6
-    const monday = new Date(curr);
-    monday.setDate(curr.getDate() - distanceToMonday);
-
-    const week: {
-      dateString: string;
-      dateObj: Date;
-      isToday: boolean;
-      dayLabel: string;
-      dayNum: number;
-    }[] = [];
-
-    const labels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      const str = d.toISOString().split('T')[0];
-      week.push({
-        dateString: str,
-        dateObj: d,
-        isToday: str === todayStr,
-        dayLabel: labels[i],
-        dayNum: d.getDate(),
-      });
-    }
-    return week;
+    return getWeekDays(currentDate, todayStr);
   }, [currentDate, todayStr]);
-
-  // Calendar week (KW) calculation
-  const getCalendarWeek = (date: Date): number => {
-    const target = new Date(date.valueOf());
-    const dayNr = (date.getDay() + 6) % 7;
-    target.setDate(target.getDate() - dayNr + 3);
-    const firstThursday = target.valueOf();
-    target.setMonth(0, 1);
-    if (target.getDay() !== 4) {
-      target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
-    }
-    return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
-  };
 
   // Month view calculations
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
   const calendarDays = useMemo(() => {
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
-
-    let startingDayOfWeek = firstDayOfMonth.getDay() - 1;
-    if (startingDayOfWeek === -1) startingDayOfWeek = 6;
-
-    const daysInMonth = lastDayOfMonth.getDate();
-    const daysInPrevMonth = new Date(year, month, 0).getDate();
-
-    const days: {
-      dateString: string;
-      dayNumber: number;
-      isCurrentMonth: boolean;
-      isToday: boolean;
-    }[] = [];
-
-    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
-      const d = daysInPrevMonth - i;
-      const prevMonthDate = new Date(year, month - 1, d);
-      const dateStr = prevMonthDate.toISOString().split('T')[0];
-      days.push({
-        dateString: dateStr,
-        dayNumber: d,
-        isCurrentMonth: false,
-        isToday: false,
-      });
-    }
-
-    for (let d = 1; d <= daysInMonth; d++) {
-      const curDate = new Date(year, month, d);
-      const dateStr = curDate.toISOString().split('T')[0];
-      days.push({
-        dateString: dateStr,
-        dayNumber: d,
-        isCurrentMonth: true,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    const remainingDays = 42 - days.length;
-    for (let d = 1; d <= remainingDays; d++) {
-      const nextMonthDate = new Date(year, month + 1, d);
-      const dateStr = nextMonthDate.toISOString().split('T')[0];
-      days.push({
-        dateString: dateStr,
-        dayNumber: d,
-        isCurrentMonth: false,
-        isToday: false,
-      });
-    }
-
-    return days;
+    return getMonthCalendarDays(year, month, todayStr);
   }, [year, month, todayStr]);
 
   // Overlapping event layout algorithm for week and day views
@@ -305,7 +221,7 @@ export const CalendarView: React.FC = () => {
   }, [filteredEvents, weekDays]);
 
   // Pre-calculate day view event layouts
-  const dayViewDateString = currentDate.toISOString().split('T')[0];
+  const dayViewDateString = formatDateKey(currentDate);
   const dayEventLayouts = useMemo(() => {
     const dayEvts = filteredEvents.filter((e) => e.date === dayViewDateString);
     return getEventLayout(dayEvts);
@@ -408,7 +324,7 @@ export const CalendarView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-[#f8faf8] text-[#171c19]">
-      {/* Top Calendar Toolbar - Clean & Responsive */}
+      {/* Top Calendar Toolbar */}
       <header className="px-4 sm:px-6 py-3 bg-white border-b border-[#e2e8e3] flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-xs">
         {/* Left: Navigation and Date Title */}
         <div className="flex flex-wrap items-center gap-3">
@@ -428,11 +344,10 @@ export const CalendarView: React.FC = () => {
                 <CalendarIcon className="w-4 h-4" />
                 <input
                   type="date"
-                  value={currentDate.toISOString().split('T')[0]}
+                  value={formatDateKey(currentDate)}
                   onChange={(e) => {
                     if (e.target.value) {
-                      const [y, m, d] = e.target.value.split('-').map(Number);
-                      setCurrentDate(new Date(y, m - 1, d));
+                      setCurrentDate(parseDateKey(e.target.value));
                     }
                   }}
                   className="sr-only"
@@ -441,7 +356,7 @@ export const CalendarView: React.FC = () => {
             </div>
           </div>
 
-          {/* Navigation Controls: Previous / Next (Heute button removed as requested) */}
+          {/* Navigation Controls: Previous / Next */}
           <div className="flex items-center bg-[#f4f7f5] border border-[#d8e2db] rounded-xl p-1 gap-0.5 shadow-xs">
             <button
               onClick={() => navigateDate('prev')}
@@ -507,7 +422,7 @@ export const CalendarView: React.FC = () => {
             onClick={() => {
               const defaultDate =
                 viewMode === 'day'
-                  ? currentDate.toISOString().split('T')[0]
+                  ? formatDateKey(currentDate)
                   : todayStr;
               openEventModal(undefined, defaultDate, '10:00');
             }}
@@ -576,7 +491,7 @@ export const CalendarView: React.FC = () => {
                   className="grid grid-cols-[72px_1fr] divide-x divide-[#e8eee9] relative"
                   style={{ height: `${24 * HOUR_HEIGHT}px` }}
                 >
-                  {/* Left Column: Hourly Time Labels (Larger & Non-Technical) */}
+                  {/* Left Column: Hourly Time Labels */}
                   <div className="bg-[#fafcfa] select-none relative divide-y divide-[#e8eee9]">
                     {HOURS.map((hour) => (
                       <div
@@ -730,7 +645,7 @@ export const CalendarView: React.FC = () => {
           {/* ===================== WOCHE (WEEK) VIEW ===================== */}
           {viewMode === 'week' && (
             <div className="bg-white rounded-2xl border border-[#e2e8e3] shadow-xs flex-1 flex flex-col overflow-hidden">
-              {/* Sticky Top Header with 7 Week Days - Larger Dates, No Term Count, No Heute Tag */}
+              {/* Sticky Top Header with 7 Week Days */}
               <div className="grid grid-cols-[72px_repeat(7,1fr)] border-b border-[#e2e8e3] bg-[#fafcfa] shrink-0 divide-x divide-[#e2e8e3]">
                 {/* Top-left corner */}
                 <div className="py-3 px-2 flex flex-col items-center justify-center text-center">
@@ -790,7 +705,7 @@ export const CalendarView: React.FC = () => {
                   className="grid grid-cols-[72px_repeat(7,1fr)] divide-x divide-[#e8eee9] relative"
                   style={{ height: `${24 * HOUR_HEIGHT}px` }}
                 >
-                  {/* Left Column: Hourly Time Labels (Larger & Non-Technical) */}
+                  {/* Left Column: Hourly Time Labels */}
                   <div className="bg-[#fafcfa] select-none relative divide-y divide-[#e8eee9]">
                     {HOURS.map((hour) => (
                       <div
@@ -1044,7 +959,7 @@ export const CalendarView: React.FC = () => {
           )}
         </div>
 
-        {/* Right Drawer: Drag & Drop Tasks Sidebar (Narrower & Cleaner) */}
+        {/* Right Drawer: Drag & Drop Tasks Sidebar */}
         {showTaskSidebar && (
           <aside
             id="calendar-tasks-drawer"
@@ -1064,7 +979,7 @@ export const CalendarView: React.FC = () => {
               </span>
             </div>
 
-            {/* Task list for dragging into calendar (Smaller cards, no due dates) */}
+            {/* Task list for dragging into calendar */}
             <div className="flex-1 overflow-y-auto p-2.5 space-y-2 bg-[#f8faf8]">
               {unscheduledTasks.length === 0 ? (
                 <div className="text-center py-10 text-[#6b7d72] text-xs">

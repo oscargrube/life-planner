@@ -17,13 +17,17 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   Unsubscribe,
 } from 'firebase/firestore';
 import { auth, db, googleProvider } from './config';
 import { handleFirestoreError, OperationType } from './errors';
 import { Idea, Task, CalendarEvent } from '../types';
 
-// Auth services
+// ==========================================
+// Authentication Services
+// ==========================================
+
 export async function signInWithGoogle(): Promise<FirebaseUser> {
   try {
     const result = await signInWithPopup(auth, googleProvider);
@@ -79,34 +83,10 @@ export function subscribeToAuth(callback: (user: FirebaseUser | null) => void): 
   return onAuthStateChanged(auth, callback);
 }
 
-// Firestore Ideas CRUD
-export function subscribeToIdeas(
-  userId: string,
-  onData: (ideas: Idea[]) => void,
-  onError?: (err: unknown) => void
-): Unsubscribe {
-  const collectionPath = 'ideas';
-  const q = query(collection(db, collectionPath), where('userId', '==', userId));
-  
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const ideas: Idea[] = [];
-      snapshot.forEach((docSnap) => {
-        ideas.push({ id: docSnap.id, ...(docSnap.data() as Omit<Idea, 'id'>) });
-      });
-      // Sort newest first
-      ideas.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      onData(ideas);
-    },
-    (error) => {
-      if (onError) onError(error);
-      handleFirestoreError(error, OperationType.GET, collectionPath);
-    }
-  );
-}
+// ==========================================
+// Helper: Clean undefined values from Firestore payloads
+// ==========================================
 
-// Helper to strip undefined values as Firestore throws if any field is undefined
 function cleanData<T extends Record<string, any>>(obj: T): Record<string, any> {
   const result: Record<string, any> = {};
   for (const [key, value] of Object.entries(obj)) {
@@ -119,6 +99,35 @@ function cleanData<T extends Record<string, any>>(obj: T): Record<string, any> {
     }
   }
   return result;
+}
+
+// ==========================================
+// Ideas CRUD & Subscription
+// ==========================================
+
+export function subscribeToIdeas(
+  userId: string,
+  onData: (ideas: Idea[]) => void,
+  onError?: (err: unknown) => void
+): Unsubscribe {
+  const collectionPath = 'ideas';
+  const q = query(collection(db, collectionPath), where('userId', '==', userId));
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const ideas: Idea[] = [];
+      snapshot.forEach((docSnap) => {
+        ideas.push({ id: docSnap.id, ...(docSnap.data() as Omit<Idea, 'id'>) });
+      });
+      ideas.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      onData(ideas);
+    },
+    (error) => {
+      if (onError) onError(error);
+      handleFirestoreError(error, OperationType.GET, collectionPath);
+    }
+  );
 }
 
 export async function addIdeaToFirestore(idea: Idea): Promise<void> {
@@ -149,7 +158,10 @@ export async function deleteIdeaFromFirestore(id: string): Promise<void> {
   }
 }
 
-// Firestore Tasks CRUD
+// ==========================================
+// Tasks CRUD & Subscription
+// ==========================================
+
 export function subscribeToTasks(
   userId: string,
   onData: (tasks: Task[]) => void,
@@ -157,7 +169,7 @@ export function subscribeToTasks(
 ): Unsubscribe {
   const collectionPath = 'tasks';
   const q = query(collection(db, collectionPath), where('userId', '==', userId));
-  
+
   return onSnapshot(
     q,
     (snapshot) => {
@@ -203,7 +215,10 @@ export async function deleteTaskFromFirestore(id: string): Promise<void> {
   }
 }
 
-// Firestore Events CRUD
+// ==========================================
+// Events CRUD & Subscription
+// ==========================================
+
 export function subscribeToEvents(
   userId: string,
   onData: (events: CalendarEvent[]) => void,
@@ -211,7 +226,7 @@ export function subscribeToEvents(
 ): Unsubscribe {
   const collectionPath = 'events';
   const q = query(collection(db, collectionPath), where('userId', '==', userId));
-  
+
   return onSnapshot(
     q,
     (snapshot) => {
@@ -219,7 +234,6 @@ export function subscribeToEvents(
       snapshot.forEach((docSnap) => {
         events.push({ id: docSnap.id, ...(docSnap.data() as Omit<CalendarEvent, 'id'>) });
       });
-      // Sort by date and time
       events.sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
       onData(events);
     },
@@ -255,5 +269,54 @@ export async function deleteEventFromFirestore(id: string): Promise<void> {
     await deleteDoc(doc(db, 'events', id));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// ==========================================
+// Migration: Transfer local guest data to newly signed-in user
+// ==========================================
+
+export async function migrateGuestDataToUser(
+  userId: string,
+  guestIdeas: Idea[],
+  guestTasks: Task[],
+  guestEvents: CalendarEvent[]
+): Promise<void> {
+  if (!userId) return;
+
+  try {
+    const batch = writeBatch(db);
+    let operationCount = 0;
+
+    for (const idea of guestIdeas) {
+      if (idea.userId === 'guest' || !idea.userId) {
+        const { id, ...data } = idea;
+        batch.set(doc(db, 'ideas', id), cleanData({ ...data, userId }));
+        operationCount++;
+      }
+    }
+
+    for (const task of guestTasks) {
+      if (task.userId === 'guest' || !task.userId) {
+        const { id, ...data } = task;
+        batch.set(doc(db, 'tasks', id), cleanData({ ...data, userId }));
+        operationCount++;
+      }
+    }
+
+    for (const event of guestEvents) {
+      if (event.userId === 'guest' || !event.userId) {
+        const { id, ...data } = event;
+        batch.set(doc(db, 'events', id), cleanData({ ...data, userId }));
+        operationCount++;
+      }
+    }
+
+    if (operationCount > 0) {
+      await batch.commit();
+      console.log(`Successfully migrated ${operationCount} guest items to user ${userId}`);
+    }
+  } catch (err) {
+    console.warn('Guest data migration notice:', err);
   }
 }

@@ -3,18 +3,27 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Allgemeine Hilfsfunktion: Nutzertrennung über userId
-    function isOwner() {
-      return request.auth != null && (
-        resource == null || resource.data.userId == request.auth.uid
-      ) && (
-        request.resource == null || request.resource.data.userId == request.auth.uid
-      );
+    // Hilfsfunktion: Prüft, ob die Anfrage von einem authentifizierten Nutzer stammt
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // Gilt automatisch für ALLE Sammlungen & Unter-Sammlungen
-    match /{document=**} {
-      allow read, write: if isOwner();
+    // Sammlung: Ideen
+    match /ideas/{ideaId} {
+      allow read, delete: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create, update: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Sammlung: Aufgaben
+    match /tasks/{taskId} {
+      allow read, delete: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create, update: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Sammlung: Kalender-Termine
+    match /events/{eventId} {
+      allow read, delete: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create, update: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
     }
   }
 }

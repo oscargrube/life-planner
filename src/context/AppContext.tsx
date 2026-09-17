@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import {
   Idea,
@@ -26,7 +26,9 @@ import {
   addEventToFirestore,
   updateEventInFirestore,
   deleteEventFromFirestore,
+  migrateGuestDataToUser,
 } from '../firebase/service';
+import { formatDateKey } from '../utils/dateUtils';
 
 interface AppContextType {
   user: FirebaseUser | null;
@@ -155,6 +157,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return [];
   });
 
+  // Track latest guest items in refs for smooth migration on login
+  const guestIdeasRef = useRef<Idea[]>(ideas);
+  const guestTasksRef = useRef<Task[]>(tasks);
+  const guestEventsRef = useRef<CalendarEvent[]>(events);
+
+  useEffect(() => {
+    if (!user) {
+      guestIdeasRef.current = ideas;
+      guestTasksRef.current = tasks;
+      guestEventsRef.current = events;
+    }
+  }, [ideas, tasks, events, user]);
+
   // Modals state
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [selectedIdeaForConversion, setSelectedIdeaForConversion] = useState<Idea | null>(null);
@@ -172,7 +187,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const openAuthModal = () => setIsAuthModalOpen(true);
   const closeAuthModal = () => setIsAuthModalOpen(false);
 
-  // Sync to local storage for guest offline mode
+  // Sync to local storage for offline / guest mode
   useEffect(() => {
     if (!user) {
       localStorage.setItem('lp_ideas', JSON.stringify(ideas));
@@ -191,16 +206,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [events, user]);
 
-  // Listen to Firebase Auth
+  // Listen to Firebase Auth state
   useEffect(() => {
-    const unsubscribe = subscribeToAuth((currentUser) => {
+    const unsubscribe = subscribeToAuth(async (currentUser) => {
       setUser(currentUser);
       setIsAuthReady(true);
+
       if (currentUser) {
         setIsFirebaseActive(true);
         setIsAuthModalOpen(false);
+
+        // Migrate local guest data to Firestore under this user account
+        if (
+          guestIdeasRef.current.length > 0 ||
+          guestTasksRef.current.length > 0 ||
+          guestEventsRef.current.length > 0
+        ) {
+          await migrateGuestDataToUser(
+            currentUser.uid,
+            guestIdeasRef.current,
+            guestTasksRef.current,
+            guestEventsRef.current
+          );
+        }
+      } else {
+        setIsFirebaseActive(false);
       }
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -353,7 +386,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTasks((prev) => [newTask, ...prev]);
 
     if (data.sourceIdeaId) {
-      // Mark idea as converted or evolving
       updateIdea(data.sourceIdeaId, {
         status: 'converted',
         convertedTo: { type: 'task', targetId: newTask.id },
@@ -493,7 +525,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       sourceTaskId: task.id,
       sourceIdeaId: task.sourceIdeaId,
     });
-    // Also update task dueDate
     await updateTask(task.id, { dueDate: targetDate });
   }, [addEvent, updateTask]);
 

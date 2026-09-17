@@ -1,54 +1,8 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script>
-      (function() {
-        'use strict';
-        try {
-          var originalFetch = window.fetch ? window.fetch.bind(window) : undefined;
-          var activeFetch = originalFetch;
-          var needsPatch = false;
-          try {
-            window.fetch = originalFetch;
-          } catch (e) {
-            needsPatch = true;
-          }
-
-          if (needsPatch) {
-            try {
-              Object.defineProperty(window, 'fetch', {
-                get: function() {
-                  return activeFetch;
-                },
-                set: function(fn) {
-                  activeFetch = fn;
-                },
-                configurable: true,
-                enumerable: true
-              });
-            } catch (err1) {
-              try {
-                var p = Object.getPrototypeOf(window);
-                if (p) {
-                  Object.defineProperty(p, 'fetch', {
-                    get: function() {
-                      return activeFetch;
-                    },
-                    set: function(fn) {
-                      activeFetch = fn;
-                    },
-                    configurable: true,
-                    enumerable: true
-                  });
-                }
-              } catch (err2) {}
-            }
-          }
-        } catch (e) {}
-      })();
-    </script>
     <title>Lebensplanung & Kalender</title>
     <meta name="description" content="Persönliche Lebensplanung: Ideen erfassen und zu Aufgaben oder Kalender-Ereignissen entwickeln mit Drag & Drop Kalender." />
     <meta property="og:title" content="Lebensplanung & Kalender" />
@@ -64,4 +18,3 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

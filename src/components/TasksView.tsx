@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Recurrence, CATEGORIES_CONFIG, Category } from '../types';
+import { getTodayDateKey } from '../utils/dateUtils';
 
 export const TasksView: React.FC = () => {
   const {
@@ -270,7 +271,7 @@ export const TasksView: React.FC = () => {
                             userId: '',
                             title: task.title,
                             description: task.description,
-                            date: task.dueDate || new Date().toISOString().split('T')[0],
+                            date: task.dueDate || getTodayDateKey(),
                             time: '10:00',
                             durationMinutes: 60,
                             category: task.category,

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Category, Recurrence, CATEGORIES_CONFIG } from '../types';
+import { getTodayDateKey } from '../utils/dateUtils';
 
 export const EventModal: React.FC = () => {
   const {
@@ -35,7 +36,7 @@ export const EventModal: React.FC = () => {
     } else {
       setTitle('');
       setDescription('');
-      setDate(presetEventDate || new Date().toISOString().split('T')[0]);
+      setDate(presetEventDate || getTodayDateKey());
       setTime(presetEventTime || '10:00');
       setDurationMinutes(60);
       setCategory('Arbeit');

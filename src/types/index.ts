@@ -20,7 +20,7 @@ export interface Idea {
   category: Category;
   status: IdeaStatus;
   convertedTo?: {
-    type: 'task' | 'event' | 'wish';
+    type: 'task' | 'event';
     targetId: string;
   };
   createdAt: string;
@@ -53,20 +53,6 @@ export interface CalendarEvent {
   category: Category;
   recurrence: Recurrence;
   sourceTaskId?: string;
-  sourceIdeaId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface WishItem {
-  id: string;
-  userId: string;
-  title: string;
-  description?: string;
-  category: Category;
-  estimatedCost?: number;
-  savedAmount?: number;
-  targetDate?: string;
   sourceIdeaId?: string;
   createdAt: string;
   updatedAt: string;

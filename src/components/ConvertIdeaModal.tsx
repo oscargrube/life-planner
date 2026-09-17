@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, ArrowRight, CheckSquare, Calendar as CalendarIcon, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Category, Recurrence, CATEGORIES_CONFIG } from '../types';
+import { formatDateKey } from '../utils/dateUtils';
 
 export const ConvertIdeaModal: React.FC = () => {
   const {
@@ -21,7 +22,7 @@ export const ConvertIdeaModal: React.FC = () => {
   const [date, setDate] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
+    return formatDateKey(tomorrow);
   });
   const [time, setTime] = useState('10:00');
   const [durationMinutes, setDurationMinutes] = useState(60);
