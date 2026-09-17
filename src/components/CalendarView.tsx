@@ -51,6 +51,7 @@ export const CalendarView: React.FC = () => {
   } | null>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const [dragOverHour, setDragOverHour] = useState<number | null>(null);
+  const [dragOverMinute, setDragOverMinute] = useState<number>(0);
 
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const dayTimelineScrollRef = useRef<HTMLDivElement>(null);
@@ -244,17 +245,28 @@ export const CalendarView: React.FC = () => {
     setDraggedItem(null);
     setDragOverDay(null);
     setDragOverHour(null);
+    setDragOverMinute(0);
   };
 
-  const handleDragOver = (e: React.DragEvent, dateString: string, hour?: number) => {
+  const handleDragOver = (
+    e: React.DragEvent,
+    dateString: string,
+    hour?: number,
+    minute?: number
+  ) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
 
     if (dragOverDay !== dateString) {
       setDragOverDay(dateString);
     }
-    if (hour !== undefined && dragOverHour !== hour) {
+    const targetMin = minute ?? 0;
+    if (
+      hour !== undefined &&
+      (dragOverHour !== hour || dragOverMinute !== targetMin)
+    ) {
       setDragOverHour(hour);
+      setDragOverMinute(targetMin);
     }
   };
 
@@ -262,17 +274,29 @@ export const CalendarView: React.FC = () => {
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setDragOverDay(null);
       setDragOverHour(null);
+      setDragOverMinute(0);
     }
   };
 
-  const handleDrop = async (e: React.DragEvent, targetDate: string, hour?: number) => {
+  const handleDrop = async (
+    e: React.DragEvent,
+    targetDate: string,
+    hour?: number,
+    minute: number = 0
+  ) => {
     e.preventDefault();
     setDragOverDay(null);
     setDragOverHour(null);
+    setDragOverMinute(0);
 
     if (!draggedItem) return;
 
-    const formattedTime = hour !== undefined ? `${String(hour).padStart(2, '0')}:00` : '10:00';
+    const formattedTime =
+      hour !== undefined
+        ? `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+        : draggedItem.type === 'event' && draggedItem.data?.time
+        ? draggedItem.data.time
+        : '10:00';
 
     if (draggedItem.type === 'event') {
       await moveEventDate(draggedItem.id, targetDate, formattedTime);
@@ -525,53 +549,93 @@ export const CalendarView: React.FC = () => {
                     className="relative transition-colors bg-white"
                   >
                     {HOURS.map((hour) => {
-                      const hourStr = `${String(hour).padStart(2, '0')}:00`;
-                      const isHovered =
-                        dragOverDay === dayViewDateString && dragOverHour === hour;
+                      const hour00 = `${String(hour).padStart(2, '0')}:00`;
+                      const hour30 = `${String(hour).padStart(2, '0')}:30`;
+                      const is00Hovered =
+                        dragOverDay === dayViewDateString &&
+                        dragOverHour === hour &&
+                        dragOverMinute === 0;
+                      const is30Hovered =
+                        dragOverDay === dayViewDateString &&
+                        dragOverHour === hour &&
+                        dragOverMinute === 30;
 
                       return (
                         <div
                           key={hour}
-                          onClick={() => {
-                            openEventModal(undefined, dayViewDateString, hourStr);
-                          }}
-                          onDragOver={(e) => {
-                            e.stopPropagation();
-                            handleDragOver(e, dayViewDateString, hour);
-                          }}
-                          onDrop={(e) => {
-                            e.stopPropagation();
-                            handleDrop(e, dayViewDateString, hour);
-                          }}
-                          className={`border-b border-[#edf2ee] relative transition-colors cursor-pointer group/slot ${
-                            isHovered
-                              ? 'bg-[#edf5f0]'
-                              : 'hover:bg-[#f6faf7]/80'
-                          }`}
+                          className="border-b border-[#edf2ee] relative flex flex-col"
                           style={{ height: `${HOUR_HEIGHT}px` }}
-                          title={`Klicken, um Termin um ${hourStr} Uhr zu erstellen`}
                         >
-                          <div className="absolute top-1/2 left-0 right-0 border-b border-[#f1f5f2] border-dashed pointer-events-none" />
-                          <div className="absolute left-3 top-2 opacity-0 group-hover/slot:opacity-80 transition-opacity pointer-events-none flex items-center gap-1.5 text-xs text-[#174e36] font-semibold">
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>{hourStr} eintragen</span>
+                          {/* Top 30 min (:00) */}
+                          <div
+                            onClick={() => {
+                              openEventModal(undefined, dayViewDateString, hour00);
+                            }}
+                            onDragOver={(e) => {
+                              e.stopPropagation();
+                              handleDragOver(e, dayViewDateString, hour, 0);
+                            }}
+                            onDrop={(e) => {
+                              e.stopPropagation();
+                              handleDrop(e, dayViewDateString, hour, 0);
+                            }}
+                            className={`h-1/2 relative transition-colors cursor-pointer group/slot ${
+                              is00Hovered
+                                ? 'bg-[#edf5f0]'
+                                : 'hover:bg-[#f6faf7]/80'
+                            }`}
+                            title={`Klicken, um Termin um ${hour00} Uhr zu erstellen`}
+                          >
+                            <div className="absolute left-3 top-1 opacity-0 group-hover/slot:opacity-80 transition-opacity pointer-events-none flex items-center gap-1.5 text-xs text-[#174e36] font-semibold">
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>{hour00} eintragen</span>
+                            </div>
+                          </div>
+
+                          {/* 30-minute separator */}
+                          <div className="absolute top-1/2 left-0 right-0 border-b border-[#f1f5f2] pointer-events-none" />
+
+                          {/* Bottom 30 min (:30) */}
+                          <div
+                            onClick={() => {
+                              openEventModal(undefined, dayViewDateString, hour30);
+                            }}
+                            onDragOver={(e) => {
+                              e.stopPropagation();
+                              handleDragOver(e, dayViewDateString, hour, 30);
+                            }}
+                            onDrop={(e) => {
+                              e.stopPropagation();
+                              handleDrop(e, dayViewDateString, hour, 30);
+                            }}
+                            className={`h-1/2 relative transition-colors cursor-pointer group/slot ${
+                              is30Hovered
+                                ? 'bg-[#edf5f0]'
+                                : 'hover:bg-[#f6faf7]/80'
+                            }`}
+                            title={`Klicken, um Termin um ${hour30} Uhr zu erstellen`}
+                          >
+                            <div className="absolute left-3 top-1 opacity-0 group-hover/slot:opacity-80 transition-opacity pointer-events-none flex items-center gap-1.5 text-xs text-[#174e36] font-semibold">
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>{hour30} eintragen</span>
+                            </div>
                           </div>
                         </div>
                       );
                     })}
 
-                    {/* Drag Over Indicator Box */}
+                    {/* Drag Over Indicator Box (Clean preview without dashed/striped border) */}
                     {dragOverDay === dayViewDateString && dragOverHour !== null && (
                       <div
-                        className="absolute left-2 right-2 rounded-xl border-2 border-dashed border-[#174e36] bg-[#174e36]/10 z-20 pointer-events-none flex items-center gap-2 px-3 text-xs font-semibold text-[#174e36] transition-all duration-75 shadow-xs"
+                        className="absolute left-2 right-2 rounded-xl bg-[#174e36]/15 border border-[#174e36]/25 z-20 pointer-events-none flex items-center gap-2 px-3 text-xs font-semibold text-[#174e36] transition-all duration-75 shadow-xs"
                         style={{
-                          top: `${dragOverHour * HOUR_HEIGHT + 2}px`,
-                          height: `${HOUR_HEIGHT - 4}px`,
+                          top: `${(dragOverHour + (dragOverMinute === 30 ? 0.5 : 0)) * HOUR_HEIGHT + 2}px`,
+                          height: `${Math.max(26, ((draggedItem?.data?.durationMinutes || 60) / 60) * HOUR_HEIGHT - 4)}px`,
                         }}
                       >
                         <Clock className="w-3.5 h-3.5 shrink-0 text-[#174e36]" />
                         <span className="truncate">
-                          {String(dragOverHour).padStart(2, '0')}:00 –{' '}
+                          {String(dragOverHour).padStart(2, '0')}:{String(dragOverMinute).padStart(2, '0')} –{' '}
                           {draggedItem?.data?.title || 'Hier ablegen'}
                         </span>
                       </div>
@@ -745,53 +809,93 @@ export const CalendarView: React.FC = () => {
                         } ${isOverDay ? 'bg-[#edf5f0]/30' : ''}`}
                       >
                         {HOURS.map((hour) => {
-                          const hourStr = `${String(hour).padStart(2, '0')}:00`;
-                          const isHourHovered =
-                            dragOverDay === wd.dateString && dragOverHour === hour;
+                          const hour00 = `${String(hour).padStart(2, '0')}:00`;
+                          const hour30 = `${String(hour).padStart(2, '0')}:30`;
+                          const is00Hovered =
+                            dragOverDay === wd.dateString &&
+                            dragOverHour === hour &&
+                            dragOverMinute === 0;
+                          const is30Hovered =
+                            dragOverDay === wd.dateString &&
+                            dragOverHour === hour &&
+                            dragOverMinute === 30;
 
                           return (
                             <div
                               key={hour}
-                              onClick={() => {
-                                openEventModal(undefined, wd.dateString, hourStr);
-                              }}
-                              onDragOver={(e) => {
-                                e.stopPropagation();
-                                handleDragOver(e, wd.dateString, hour);
-                              }}
-                              onDrop={(e) => {
-                                e.stopPropagation();
-                                handleDrop(e, wd.dateString, hour);
-                              }}
-                              className={`border-b border-[#edf2ee] relative transition-colors cursor-pointer group/slot ${
-                                isHourHovered
-                                  ? 'bg-[#edf5f0]'
-                                  : 'hover:bg-[#f6faf7]/80'
-                              }`}
+                              className="border-b border-[#edf2ee] relative flex flex-col"
                               style={{ height: `${HOUR_HEIGHT}px` }}
-                              title={`Klicken, um Termin für ${wd.dayLabel}, ${hourStr} Uhr einzutragen`}
                             >
-                              <div className="absolute top-1/2 left-0 right-0 border-b border-[#f1f5f2] border-dashed pointer-events-none" />
-                              <div className="absolute left-1.5 top-1 opacity-0 group-hover/slot:opacity-75 transition-opacity pointer-events-none flex items-center gap-1 text-[10px] text-[#174e36] font-semibold">
-                                <Plus className="w-2.5 h-2.5" />
-                                <span>{hourStr}</span>
+                              {/* Top 30 min (:00) */}
+                              <div
+                                onClick={() => {
+                                  openEventModal(undefined, wd.dateString, hour00);
+                                }}
+                                onDragOver={(e) => {
+                                  e.stopPropagation();
+                                  handleDragOver(e, wd.dateString, hour, 0);
+                                }}
+                                onDrop={(e) => {
+                                  e.stopPropagation();
+                                  handleDrop(e, wd.dateString, hour, 0);
+                                }}
+                                className={`h-1/2 relative transition-colors cursor-pointer group/slot ${
+                                  is00Hovered
+                                    ? 'bg-[#edf5f0]'
+                                    : 'hover:bg-[#f6faf7]/80'
+                                }`}
+                                title={`Klicken, um Termin für ${wd.dayLabel}, ${hour00} Uhr einzutragen`}
+                              >
+                                <div className="absolute left-1.5 top-0.5 opacity-0 group-hover/slot:opacity-75 transition-opacity pointer-events-none flex items-center gap-1 text-[10px] text-[#174e36] font-semibold">
+                                  <Plus className="w-2.5 h-2.5" />
+                                  <span>{hour00}</span>
+                                </div>
+                              </div>
+
+                              {/* 30-minute separator */}
+                              <div className="absolute top-1/2 left-0 right-0 border-b border-[#f1f5f2] pointer-events-none" />
+
+                              {/* Bottom 30 min (:30) */}
+                              <div
+                                onClick={() => {
+                                  openEventModal(undefined, wd.dateString, hour30);
+                                }}
+                                onDragOver={(e) => {
+                                  e.stopPropagation();
+                                  handleDragOver(e, wd.dateString, hour, 30);
+                                }}
+                                onDrop={(e) => {
+                                  e.stopPropagation();
+                                  handleDrop(e, wd.dateString, hour, 30);
+                                }}
+                                className={`h-1/2 relative transition-colors cursor-pointer group/slot ${
+                                  is30Hovered
+                                    ? 'bg-[#edf5f0]'
+                                    : 'hover:bg-[#f6faf7]/80'
+                                }`}
+                                title={`Klicken, um Termin für ${wd.dayLabel}, ${hour30} Uhr einzutragen`}
+                              >
+                                <div className="absolute left-1.5 top-0.5 opacity-0 group-hover/slot:opacity-75 transition-opacity pointer-events-none flex items-center gap-1 text-[10px] text-[#174e36] font-semibold">
+                                  <Plus className="w-2.5 h-2.5" />
+                                  <span>{hour30}</span>
+                                </div>
                               </div>
                             </div>
                           );
                         })}
 
-                        {/* Smooth Drop Indicator Ghost */}
+                        {/* Smooth Drop Indicator Ghost (Clean preview without dashed/striped border) */}
                         {isOverDay && dragOverHour !== null && (
                           <div
-                            className="absolute left-1 right-1 rounded-xl border-2 border-dashed border-[#174e36] bg-[#174e36]/10 z-20 pointer-events-none flex items-center gap-1 px-2 text-[10px] font-semibold text-[#174e36] transition-all duration-75 shadow-xs"
+                            className="absolute left-1 right-1 rounded-xl bg-[#174e36]/15 border border-[#174e36]/25 z-20 pointer-events-none flex items-center gap-1 px-2 text-[10px] font-semibold text-[#174e36] transition-all duration-75 shadow-xs"
                             style={{
-                              top: `${dragOverHour * HOUR_HEIGHT + 2}px`,
-                              height: `${HOUR_HEIGHT - 4}px`,
+                              top: `${(dragOverHour + (dragOverMinute === 30 ? 0.5 : 0)) * HOUR_HEIGHT + 2}px`,
+                              height: `${Math.max(26, ((draggedItem?.data?.durationMinutes || 60) / 60) * HOUR_HEIGHT - 4)}px`,
                             }}
                           >
                             <Clock className="w-3 h-3 shrink-0 text-[#174e36]" />
                             <span className="truncate">
-                              {String(dragOverHour).padStart(2, '0')}:00 –{' '}
+                              {String(dragOverHour).padStart(2, '0')}:{String(dragOverMinute).padStart(2, '0')} –{' '}
                               {draggedItem?.data?.title || 'Hier ablegen'}
                             </span>
                           </div>
