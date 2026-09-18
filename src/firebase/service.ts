@@ -111,6 +111,7 @@ export function subscribeToIdeas(
   onError?: (err: unknown) => void
 ): Unsubscribe {
   const collectionPath = 'ideas';
+  console.log(`[Firestore] Subscribing to "${collectionPath}" for user "${userId}"`);
   const q = query(collection(db, collectionPath), where('userId', '==', userId));
 
   return onSnapshot(
@@ -121,9 +122,11 @@ export function subscribeToIdeas(
         ideas.push({ id: docSnap.id, ...(docSnap.data() as Omit<Idea, 'id'>) });
       });
       ideas.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      console.log(`[Firestore] Received ${ideas.length} ideas for user "${userId}"`);
       onData(ideas);
     },
     (error) => {
+      console.error(`[Firestore Error] Failed to fetch "${collectionPath}":`, error);
       if (onError) onError(error);
       handleFirestoreError(error, OperationType.GET, collectionPath);
     }
@@ -168,6 +171,7 @@ export function subscribeToTasks(
   onError?: (err: unknown) => void
 ): Unsubscribe {
   const collectionPath = 'tasks';
+  console.log(`[Firestore] Subscribing to "${collectionPath}" for user "${userId}"`);
   const q = query(collection(db, collectionPath), where('userId', '==', userId));
 
   return onSnapshot(
@@ -178,9 +182,11 @@ export function subscribeToTasks(
         tasks.push({ id: docSnap.id, ...(docSnap.data() as Omit<Task, 'id'>) });
       });
       tasks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      console.log(`[Firestore] Received ${tasks.length} tasks for user "${userId}"`);
       onData(tasks);
     },
     (error) => {
+      console.error(`[Firestore Error] Failed to fetch "${collectionPath}":`, error);
       if (onError) onError(error);
       handleFirestoreError(error, OperationType.GET, collectionPath);
     }
@@ -225,6 +231,7 @@ export function subscribeToEvents(
   onError?: (err: unknown) => void
 ): Unsubscribe {
   const collectionPath = 'events';
+  console.log(`[Firestore] Subscribing to "${collectionPath}" for user "${userId}"`);
   const q = query(collection(db, collectionPath), where('userId', '==', userId));
 
   return onSnapshot(
@@ -235,9 +242,11 @@ export function subscribeToEvents(
         events.push({ id: docSnap.id, ...(docSnap.data() as Omit<CalendarEvent, 'id'>) });
       });
       events.sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+      console.log(`[Firestore] Received ${events.length} events for user "${userId}"`);
       onData(events);
     },
     (error) => {
+      console.error(`[Firestore Error] Failed to fetch "${collectionPath}":`, error);
       if (onError) onError(error);
       handleFirestoreError(error, OperationType.GET, collectionPath);
     }

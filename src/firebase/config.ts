@@ -1,12 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import {
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-  getFirestore,
-  Firestore,
-} from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
 // Your web app's Firebase configuration
@@ -24,21 +18,10 @@ const firebaseConfig = {
 // Initialize Firebase App
 export const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with robust multi-tab offline persistence
-let firestoreDb: Firestore;
-try {
-  firestoreDb = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager(),
-    }),
-  });
-} catch (e) {
-  firestoreDb = getFirestore(app);
-}
-
-export const db = firestoreDb;
+export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+
 
 // Initialize Analytics if supported in environment
 export const analyticsPromise = isSupported().then((supported) => (supported ? getAnalytics(app) : null));

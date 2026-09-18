@@ -179,37 +179,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const openAuthModal = () => setIsAuthModalOpen(true);
   const closeAuthModal = () => setIsAuthModalOpen(false);
 
-  // Sync to user-keyed local storage for instant offline access and fast reloading
-  useEffect(() => {
-    try {
-      const key = getStorageKey('ideas', user?.uid);
-      localStorage.setItem(key, JSON.stringify(ideas));
-    } catch (e) {
-      console.warn('Error caching ideas to localStorage:', e);
-    }
-  }, [ideas, user]);
-
-  useEffect(() => {
-    try {
-      const key = getStorageKey('tasks', user?.uid);
-      localStorage.setItem(key, JSON.stringify(tasks));
-    } catch (e) {
-      console.warn('Error caching tasks to localStorage:', e);
-    }
-  }, [tasks, user]);
-
-  useEffect(() => {
-    try {
-      const key = getStorageKey('events', user?.uid);
-      localStorage.setItem(key, JSON.stringify(events));
-    } catch (e) {
-      console.warn('Error caching events to localStorage:', e);
-    }
-  }, [events, user]);
-
   // Listen to Firebase Auth state
   useEffect(() => {
     const unsubscribe = subscribeToAuth(async (currentUser) => {
+      console.log('[Auth] State changed:', currentUser ? `User ${currentUser.email || currentUser.uid} (UID: ${currentUser.uid})` : 'Guest / Logged out');
       setUser(currentUser);
       setIsAuthReady(true);
 
@@ -225,13 +198,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const userEventsKey = getStorageKey('events', currentUser.uid);
 
           const cachedIdeas = localStorage.getItem(userIdeasKey);
-          if (cachedIdeas) setIdeas(JSON.parse(cachedIdeas));
+          if (cachedIdeas) {
+            const parsed = JSON.parse(cachedIdeas);
+            if (Array.isArray(parsed) && parsed.length > 0) setIdeas(parsed);
+          }
 
           const cachedTasks = localStorage.getItem(userTasksKey);
-          if (cachedTasks) setTasks(JSON.parse(cachedTasks));
+          if (cachedTasks) {
+            const parsed = JSON.parse(cachedTasks);
+            if (Array.isArray(parsed) && parsed.length > 0) setTasks(parsed);
+          }
 
           const cachedEvents = localStorage.getItem(userEventsKey);
-          if (cachedEvents) setEvents(JSON.parse(cachedEvents));
+          if (cachedEvents) {
+            const parsed = JSON.parse(cachedEvents);
+            if (Array.isArray(parsed) && parsed.length > 0) setEvents(parsed);
+          }
         } catch (err) {
           console.warn('Error loading cached user data on auth change:', err);
         }
@@ -263,6 +245,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     return () => unsubscribe();
   }, []);
+
 
   // Sync with Firestore when user is signed in
   useEffect(() => {
