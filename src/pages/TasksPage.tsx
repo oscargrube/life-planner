@@ -49,7 +49,7 @@ export const TasksPage: React.FC = () => {
   });
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-[#f8faf8] text-[#171c19]">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#f8faf8] text-[#171c19]">
       {/* Header */}
       <header className="p-6 bg-white border-b border-[#e2e8e3] flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-xs">
         <div>

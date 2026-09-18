@@ -53,7 +53,7 @@ export const Sidebar: React.FC = () => {
 
       <aside
         id="main-sidebar"
-        className={`w-64 bg-white text-[#171c19] flex flex-col shrink-0 border-r border-[#e3ebe5] select-none h-screen fixed md:sticky top-0 left-0 z-40 transition-transform duration-300 shadow-xl md:shadow-xs md:translate-x-0 ${
+        className={`w-64 bg-white text-[#171c19] flex flex-col shrink-0 border-r border-[#e3ebe5] select-none h-[100dvh] fixed md:sticky top-0 left-0 z-40 transition-transform duration-300 shadow-xl md:shadow-xs md:translate-x-0 ${
           isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

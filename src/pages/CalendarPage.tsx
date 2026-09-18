@@ -365,7 +365,7 @@ export const CalendarPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-[#f8faf8] text-[#171c19]">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#f8faf8] text-[#171c19]">
       <CalendarHeader
         getHeaderTitle={getHeaderTitle}
         currentDate={currentDate}

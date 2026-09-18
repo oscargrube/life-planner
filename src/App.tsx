@@ -28,7 +28,7 @@ const AppContent: React.FC = () => {
   const isCalendar = location.pathname.startsWith('/calendar');
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#f8faf8] text-[#171c19] antialiased selection:bg-[#174e36] selection:text-white flex-col md:flex-row">
+    <div className="flex h-[100dvh] w-screen overflow-hidden bg-[#f8faf8] text-[#171c19] antialiased selection:bg-[#174e36] selection:text-white flex-col md:flex-row">
       {/* Mobile Top Bar (Hidden on Calendar as it has its own merged header) */}
       {!isCalendar && (
         <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-[#e2e8e3] shrink-0 z-20 shadow-xs">
