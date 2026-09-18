@@ -112,6 +112,30 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Helpers for user-isolated local caching
+const getStorageKey = (type: 'ideas' | 'tasks' | 'events', uid?: string | null) => {
+  return `lp_${type}_${uid || 'guest'}`;
+};
+
+const loadInitialData = <T,>(type: 'ideas' | 'tasks' | 'events'): T[] => {
+  try {
+    const lastUser = localStorage.getItem('lp_last_user_id');
+    const userKey = getStorageKey(type, lastUser);
+    const saved = localStorage.getItem(userKey);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    // Fallback for guest or older version keys
+    const fallbackSaved = localStorage.getItem(getStorageKey(type, null)) || localStorage.getItem(`lp_${type}`);
+    if (fallbackSaved) {
+      return JSON.parse(fallbackSaved);
+    }
+  } catch (e) {
+    console.warn(`Failed to parse cached ${type}:`, e);
+  }
+  return [];
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
@@ -120,42 +144,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentView, setCurrentView] = useState<ViewScreen>('calendar');
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
 
-  // Local fallback storage states
-  const [ideas, setIdeas] = useState<Idea[]>(() => {
-    const saved = localStorage.getItem('lp_ideas');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return [];
-      }
-    }
-    return [];
-  });
-
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const saved = localStorage.getItem('lp_tasks');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return [];
-      }
-    }
-    return [];
-  });
-
-  const [events, setEvents] = useState<CalendarEvent[]>(() => {
-    const saved = localStorage.getItem('lp_events');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return [];
-      }
-    }
-    return [];
-  });
+  // User-isolated offline-first state
+  const [ideas, setIdeas] = useState<Idea[]>(() => loadInitialData<Idea>('ideas'));
+  const [tasks, setTasks] = useState<Task[]>(() => loadInitialData<Task>('tasks'));
+  const [events, setEvents] = useState<CalendarEvent[]>(() => loadInitialData<CalendarEvent>('events'));
 
   // Track latest guest items in refs for smooth migration on login
   const guestIdeasRef = useRef<Idea[]>(ideas);
@@ -187,22 +179,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const openAuthModal = () => setIsAuthModalOpen(true);
   const closeAuthModal = () => setIsAuthModalOpen(false);
 
-  // Sync to local storage for offline / guest mode
+  // Sync to user-keyed local storage for instant offline access and fast reloading
   useEffect(() => {
-    if (!user) {
-      localStorage.setItem('lp_ideas', JSON.stringify(ideas));
+    try {
+      const key = getStorageKey('ideas', user?.uid);
+      localStorage.setItem(key, JSON.stringify(ideas));
+    } catch (e) {
+      console.warn('Error caching ideas to localStorage:', e);
     }
   }, [ideas, user]);
 
   useEffect(() => {
-    if (!user) {
-      localStorage.setItem('lp_tasks', JSON.stringify(tasks));
+    try {
+      const key = getStorageKey('tasks', user?.uid);
+      localStorage.setItem(key, JSON.stringify(tasks));
+    } catch (e) {
+      console.warn('Error caching tasks to localStorage:', e);
     }
   }, [tasks, user]);
 
   useEffect(() => {
-    if (!user) {
-      localStorage.setItem('lp_events', JSON.stringify(events));
+    try {
+      const key = getStorageKey('events', user?.uid);
+      localStorage.setItem(key, JSON.stringify(events));
+    } catch (e) {
+      console.warn('Error caching events to localStorage:', e);
     }
   }, [events, user]);
 
@@ -215,19 +216,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (currentUser) {
         setIsFirebaseActive(true);
         setIsAuthModalOpen(false);
+        localStorage.setItem('lp_last_user_id', currentUser.uid);
 
-        // Migrate local guest data to Firestore under this user account
-        if (
-          guestIdeasRef.current.length > 0 ||
-          guestTasksRef.current.length > 0 ||
-          guestEventsRef.current.length > 0
-        ) {
+        // Preload any existing local cache for this specific user immediately
+        try {
+          const userIdeasKey = getStorageKey('ideas', currentUser.uid);
+          const userTasksKey = getStorageKey('tasks', currentUser.uid);
+          const userEventsKey = getStorageKey('events', currentUser.uid);
+
+          const cachedIdeas = localStorage.getItem(userIdeasKey);
+          if (cachedIdeas) setIdeas(JSON.parse(cachedIdeas));
+
+          const cachedTasks = localStorage.getItem(userTasksKey);
+          if (cachedTasks) setTasks(JSON.parse(cachedTasks));
+
+          const cachedEvents = localStorage.getItem(userEventsKey);
+          if (cachedEvents) setEvents(JSON.parse(cachedEvents));
+        } catch (err) {
+          console.warn('Error loading cached user data on auth change:', err);
+        }
+
+        // Migrate local guest data to Firestore under this user account if present
+        const guestIdeas = guestIdeasRef.current.filter((i) => i.userId === 'guest' || !i.userId);
+        const guestTasks = guestTasksRef.current.filter((t) => t.userId === 'guest' || !t.userId);
+        const guestEvents = guestEventsRef.current.filter((e) => e.userId === 'guest' || !e.userId);
+
+        if (guestIdeas.length > 0 || guestTasks.length > 0 || guestEvents.length > 0) {
           await migrateGuestDataToUser(
             currentUser.uid,
-            guestIdeasRef.current,
-            guestTasksRef.current,
-            guestEventsRef.current
+            guestIdeas,
+            guestTasks,
+            guestEvents
           );
+          // Clear guest local storage so migrated data doesn't persist as ghost guest data
+          localStorage.removeItem('lp_ideas_guest');
+          localStorage.removeItem('lp_tasks_guest');
+          localStorage.removeItem('lp_events_guest');
+          guestIdeasRef.current = [];
+          guestTasksRef.current = [];
+          guestEventsRef.current = [];
         }
       } else {
         setIsFirebaseActive(false);
@@ -248,14 +275,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       unsubIdeas = subscribeToIdeas(user.uid, (firestoreIdeas) => {
         setIdeas(firestoreIdeas);
+        localStorage.setItem(getStorageKey('ideas', user.uid), JSON.stringify(firestoreIdeas));
       });
 
       unsubTasks = subscribeToTasks(user.uid, (firestoreTasks) => {
         setTasks(firestoreTasks);
+        localStorage.setItem(getStorageKey('tasks', user.uid), JSON.stringify(firestoreTasks));
       });
 
       unsubEvents = subscribeToEvents(user.uid, (firestoreEvents) => {
         setEvents(firestoreEvents);
+        localStorage.setItem(getStorageKey('events', user.uid), JSON.stringify(firestoreEvents));
       });
     } catch (err) {
       console.warn('Firestore subscription notice:', err);
@@ -297,16 +327,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await logOut();
       setUser(null);
-      const savedIdeas = localStorage.getItem('lp_ideas');
-      setIdeas(savedIdeas ? JSON.parse(savedIdeas) : []);
-      const savedTasks = localStorage.getItem('lp_tasks');
-      setTasks(savedTasks ? JSON.parse(savedTasks) : []);
-      const savedEvents = localStorage.getItem('lp_events');
-      setEvents(savedEvents ? JSON.parse(savedEvents) : []);
+      localStorage.removeItem('lp_last_user_id');
+      const guestIdeas = loadInitialData<Idea>('ideas');
+      setIdeas(guestIdeas);
+      const guestTasks = loadInitialData<Task>('tasks');
+      setTasks(guestTasks);
+      const guestEvents = loadInitialData<CalendarEvent>('events');
+      setEvents(guestEvents);
     } catch (error) {
       console.error('Logout failed:', error);
     }
   };
+
 
   // Idea actions
   const addIdea = useCallback(async (data: { title: string; description?: string; category: Category }) => {

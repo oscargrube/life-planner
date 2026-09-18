@@ -18,6 +18,8 @@ import {
   getCalendarWeek,
   getWeekDays,
   getMonthCalendarDays,
+  isEventOnDate,
+  isSameDay,
 } from '../utils/dateUtils';
 
 type CalendarViewMode = 'day' | 'week' | 'month';
@@ -211,11 +213,13 @@ export const CalendarView: React.FC = () => {
     return layoutList;
   };
 
-  // Pre-calculate week event layouts to prevent re-calculations during drag moves
+  // Pre-calculate week event layouts with robust recurring & single date matching
   const weekEventLayouts = useMemo(() => {
     const map = new Map<string, ReturnType<typeof getEventLayout>>();
     for (const wd of weekDays) {
-      const dayEvts = filteredEvents.filter((e) => e.date === wd.dateString);
+      const dayEvts = filteredEvents.filter((e) =>
+        isEventOnDate(e.date, e.recurrence, wd.dateString)
+      );
       map.set(wd.dateString, getEventLayout(dayEvts));
     }
     return map;
@@ -224,9 +228,12 @@ export const CalendarView: React.FC = () => {
   // Pre-calculate day view event layouts
   const dayViewDateString = formatDateKey(currentDate);
   const dayEventLayouts = useMemo(() => {
-    const dayEvts = filteredEvents.filter((e) => e.date === dayViewDateString);
+    const dayEvts = filteredEvents.filter((e) =>
+      isEventOnDate(e.date, e.recurrence, dayViewDateString)
+    );
     return getEventLayout(dayEvts);
   }, [filteredEvents, dayViewDateString]);
+
 
   // Drag and drop handlers
   const handleDragStartEvent = (e: React.DragEvent, eventItem: CalendarEvent) => {
@@ -380,25 +387,39 @@ export const CalendarView: React.FC = () => {
             </div>
           </div>
 
-          {/* Navigation Controls: Previous / Next */}
-          <div className="flex items-center bg-[#f4f7f5] border border-[#d8e2db] rounded-xl p-1 gap-0.5 shadow-xs">
+          {/* Navigation Controls: Today + Previous / Next */}
+          <div className="flex items-center gap-1.5">
             <button
-              onClick={() => navigateDate('prev')}
-              className="p-1.5 hover:bg-white rounded-lg text-[#52645a] hover:text-[#171c19] transition-all cursor-pointer hover:shadow-xs active:scale-95"
-              title={getPrevNextTooltip('prev')}
-              aria-label={getPrevNextTooltip('prev')}
+              onClick={() => setCurrentDate(new Date())}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-xs active:scale-95 ${
+                isSameDay(currentDate, new Date())
+                  ? 'bg-[#edf5f0] text-[#174e36] border-[#cfe0d5] font-bold'
+                  : 'bg-white text-[#52645a] border-[#d8e2db] hover:bg-[#f4f7f5] hover:text-[#171c19]'
+              }`}
+              title="Zum heutigen Tag springen"
             >
-              <ChevronLeft className="w-4 h-4" />
+              Heute
             </button>
 
-            <button
-              onClick={() => navigateDate('next')}
-              className="p-1.5 hover:bg-white rounded-lg text-[#52645a] hover:text-[#171c19] transition-all cursor-pointer hover:shadow-xs active:scale-95"
-              title={getPrevNextTooltip('next')}
-              aria-label={getPrevNextTooltip('next')}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            <div className="flex items-center bg-[#f4f7f5] border border-[#d8e2db] rounded-xl p-1 gap-0.5 shadow-xs">
+              <button
+                onClick={() => navigateDate('prev')}
+                className="p-1.5 hover:bg-white rounded-lg text-[#52645a] hover:text-[#171c19] transition-all cursor-pointer hover:shadow-xs active:scale-95"
+                title={getPrevNextTooltip('prev')}
+                aria-label={getPrevNextTooltip('prev')}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => navigateDate('next')}
+                className="p-1.5 hover:bg-white rounded-lg text-[#52645a] hover:text-[#171c19] transition-all cursor-pointer hover:shadow-xs active:scale-95"
+                title={getPrevNextTooltip('next')}
+                aria-label={getPrevNextTooltip('next')}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -986,8 +1007,8 @@ export const CalendarView: React.FC = () => {
               {/* Month Grid Cells */}
               <div className="grid grid-cols-7 flex-1 divide-x divide-y divide-[#e8eee9] overflow-y-auto">
                 {calendarDays.map((dayItem, idx) => {
-                  const dayEvents = filteredEvents.filter(
-                    (e) => e.date === dayItem.dateString
+                  const dayEvents = filteredEvents.filter((e) =>
+                    isEventOnDate(e.date, e.recurrence, dayItem.dateString)
                   );
                   const isOver = dragOverDay === dayItem.dateString;
 

@@ -142,3 +142,53 @@ export function getMonthCalendarDays(year: number, month: number, todayDateKey: 
 
   return days;
 }
+
+/**
+ * Checks if a given event (which may be single or recurring) should appear on targetDateKey (YYYY-MM-DD).
+ */
+export function isEventOnDate(
+  eventDateKey: string,
+  recurrence: 'none' | 'daily' | 'weekly' | 'monthly' | undefined,
+  targetDateKey: string
+): boolean {
+  if (!eventDateKey || !targetDateKey) return false;
+
+  // Single non-recurring event: exact match
+  if (!recurrence || recurrence === 'none') {
+    return eventDateKey === targetDateKey;
+  }
+
+  // Recurring events do not appear before their initial scheduled start date
+  if (targetDateKey < eventDateKey) {
+    return false;
+  }
+
+  if (recurrence === 'daily') {
+    return true;
+  }
+
+  if (recurrence === 'weekly') {
+    const eventDate = parseDateKey(eventDateKey);
+    const targetDate = parseDateKey(targetDateKey);
+    return eventDate.getDay() === targetDate.getDay();
+  }
+
+  if (recurrence === 'monthly') {
+    const eventDate = parseDateKey(eventDateKey);
+    const targetDate = parseDateKey(targetDateKey);
+    return eventDate.getDate() === targetDate.getDate();
+  }
+
+  return false;
+}
+
+/**
+ * Checks if two Date objects represent the exact same calendar day.
+ */
+export function isSameDay(d1: Date, d2: Date): boolean {
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+}
