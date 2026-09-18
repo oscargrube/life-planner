@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Lightbulb, Trash2 } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { Category, CATEGORIES_CONFIG } from '../types';
+import { useApp } from '../../context/AppContext';
+import { Category, CATEGORIES_CONFIG } from '../../types';
 
 export const IdeaModal: React.FC = () => {
   const {

@@ -1,18 +1,17 @@
 import React from 'react';
-import { AppProvider, useApp } from './context/AppContext';
-import { Sidebar } from './components/Sidebar';
-import { CalendarView } from './components/CalendarView';
-import { IdeasView } from './components/IdeasView';
-import { TasksView } from './components/TasksView';
-import { ConvertIdeaModal } from './components/ConvertIdeaModal';
-import { EventModal } from './components/EventModal';
-import { TaskModal } from './components/TaskModal';
-import { IdeaModal } from './components/IdeaModal';
-import { AuthModal } from './components/AuthModal';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AppProvider } from './context/AppContext';
+import { Sidebar } from './components/layout/Sidebar';
+import { CalendarPage } from './pages/CalendarPage';
+import { IdeasPage } from './pages/IdeasPage';
+import { TasksPage } from './pages/TasksPage';
+import { ConvertIdeaModal } from './components/modals/ConvertIdeaModal';
+import { EventModal } from './components/modals/EventModal';
+import { TaskModal } from './components/modals/TaskModal';
+import { IdeaModal } from './components/modals/IdeaModal';
+import { AuthModal } from './components/modals/AuthModal';
 
 const AppContent: React.FC = () => {
-  const { currentView } = useApp();
-
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#f8faf8] text-[#171c19] antialiased selection:bg-[#174e36] selection:text-white">
       {/* Left Sidebar Menu */}
@@ -20,9 +19,12 @@ const AppContent: React.FC = () => {
 
       {/* Main View Area */}
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#f8faf8]">
-        {currentView === 'calendar' && <CalendarView />}
-        {currentView === 'ideas' && <IdeasView />}
-        {currentView === 'tasks' && <TasksView />}
+        <Routes>
+          <Route path="/" element={<Navigate to="/calendar" replace />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/ideas" element={<IdeasPage />} />
+          <Route path="/tasks" element={<TasksPage />} />
+        </Routes>
       </main>
 
       {/* Global Modals */}
@@ -37,8 +39,10 @@ const AppContent: React.FC = () => {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <BrowserRouter>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </BrowserRouter>
   );
 }

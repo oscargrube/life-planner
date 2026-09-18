@@ -9,32 +9,33 @@ import {
   CloudCheck,
   CloudOff,
 } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { ViewScreen } from '../types';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { useUI } from '../../context/UIContext';
+import { ViewScreen } from '../../types';
 
 export const Sidebar: React.FC = () => {
-  const {
-    currentView,
-    setCurrentView,
-    user,
-    openAuthModal,
-    logout,
-    openIdeaModal,
-  } = useApp();
+  const { user, logout } = useAuth();
+  const { openAuthModal, openIdeaModal } = useUI();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const navItems: { id: ViewScreen; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  const navItems: { id: ViewScreen; path: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     {
       id: 'calendar',
+      path: '/calendar',
       label: 'Kalender',
       icon: CalendarIcon,
     },
     {
       id: 'ideas',
+      path: '/ideas',
       label: 'Ideenbereich',
       icon: Lightbulb,
     },
     {
       id: 'tasks',
+      path: '/tasks',
       label: 'Aufgaben',
       icon: CheckSquare,
     },
@@ -81,12 +82,14 @@ export const Sidebar: React.FC = () => {
           <nav className="mt-2 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = currentView === item.id;
+              const isActive = item.path === '/'
+                ? location.pathname === '/'
+                : location.pathname.startsWith(item.path);
               return (
                 <button
                   key={item.id}
                   id={`nav-link-${item.id}`}
-                  onClick={() => setCurrentView(item.id)}
+                  onClick={() => navigate(item.path)}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                     isActive
                       ? 'bg-[#edf5f0] text-[#143d2b] shadow-xs border border-[#cfe0d5] font-semibold'

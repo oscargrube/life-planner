@@ -13,7 +13,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { Category, CATEGORIES_CONFIG } from '../types';
 
-export const IdeasView: React.FC = () => {
+export const IdeasPage: React.FC = () => {
   const {
     ideas,
     selectedCategory,

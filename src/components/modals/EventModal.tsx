@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { Category, Recurrence, CATEGORIES_CONFIG } from '../types';
-import { getTodayDateKey } from '../utils/dateUtils';
+import { useApp } from '../../context/AppContext';
+import { Category, Recurrence, CATEGORIES_CONFIG } from '../../types';
+import { getTodayDateKey } from '../../utils/dateUtils';
 
 export const EventModal: React.FC = () => {
   const {

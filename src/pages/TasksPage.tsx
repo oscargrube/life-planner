@@ -13,7 +13,7 @@ import { useApp } from '../context/AppContext';
 import { Recurrence, CATEGORIES_CONFIG, Category } from '../types';
 import { getTodayDateKey } from '../utils/dateUtils';
 
-export const TasksView: React.FC = () => {
+export const TasksPage: React.FC = () => {
   const {
     tasks,
     selectedCategory,

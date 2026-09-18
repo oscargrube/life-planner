@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, CheckSquare, Trash2 } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { Category, Recurrence, CATEGORIES_CONFIG } from '../types';
+import { useApp } from '../../context/AppContext';
+import { Category, Recurrence, CATEGORIES_CONFIG } from '../../types';
 
 export const TaskModal: React.FC = () => {
   const {

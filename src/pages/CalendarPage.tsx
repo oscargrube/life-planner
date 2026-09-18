@@ -21,13 +21,13 @@ import {
   isEventOnDate,
   isSameDay,
 } from '../utils/dateUtils';
-
-type CalendarViewMode = 'day' | 'week' | 'month';
+import { TaskSidebar } from './calendar/TaskSidebar';
+import { CalendarHeader, CalendarViewMode } from './calendar/CalendarHeader';
 
 const HOUR_HEIGHT = 64; // pixels per hour
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-export const CalendarView: React.FC = () => {
+export const CalendarPage: React.FC = () => {
   const {
     events,
     tasks,
@@ -355,143 +355,19 @@ export const CalendarView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-[#f8faf8] text-[#171c19]">
-      {/* Top Calendar Toolbar */}
-      <header className="px-4 sm:px-6 py-3 bg-white border-b border-[#e2e8e3] flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-xs">
-        {/* Left: Navigation and Date Title */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#edf5f0] border border-[#cfe0d5] text-[#174e36] flex items-center justify-center shadow-xs">
-              <CalendarIcon className="w-4.5 h-4.5 text-[#174e36]" />
-            </div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-bold text-[#171c19] tracking-tight leading-tight">
-                {getHeaderTitle()}
-              </h2>
-              {/* Native mini date jump picker */}
-              <label
-                title="Zu einem bestimmten Datum springen"
-                className="cursor-pointer text-[#6b7d72] hover:text-[#174e36] transition-colors p-1 rounded-lg hover:bg-[#edf5f0]"
-              >
-                <CalendarIcon className="w-4 h-4" />
-                <input
-                  type="date"
-                  value={formatDateKey(currentDate)}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setCurrentDate(parseDateKey(e.target.value));
-                    }
-                  }}
-                  className="sr-only"
-                />
-              </label>
-            </div>
-          </div>
-
-          {/* Navigation Controls: Today + Previous / Next */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setCurrentDate(new Date())}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-xs active:scale-95 ${
-                isSameDay(currentDate, new Date())
-                  ? 'bg-[#edf5f0] text-[#174e36] border-[#cfe0d5] font-bold'
-                  : 'bg-white text-[#52645a] border-[#d8e2db] hover:bg-[#f4f7f5] hover:text-[#171c19]'
-              }`}
-              title="Zum heutigen Tag springen"
-            >
-              Heute
-            </button>
-
-            <div className="flex items-center bg-[#f4f7f5] border border-[#d8e2db] rounded-xl p-1 gap-0.5 shadow-xs">
-              <button
-                onClick={() => navigateDate('prev')}
-                className="p-1.5 hover:bg-white rounded-lg text-[#52645a] hover:text-[#171c19] transition-all cursor-pointer hover:shadow-xs active:scale-95"
-                title={getPrevNextTooltip('prev')}
-                aria-label={getPrevNextTooltip('prev')}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => navigateDate('next')}
-                className="p-1.5 hover:bg-white rounded-lg text-[#52645a] hover:text-[#171c19] transition-all cursor-pointer hover:shadow-xs active:scale-95"
-                title={getPrevNextTooltip('next')}
-                aria-label={getPrevNextTooltip('next')}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Center/Flexible: View Mode Switcher */}
-        <div className="flex items-center bg-[#f4f7f5] border border-[#d8e2db] rounded-xl p-1 shadow-xs">
-          <button
-            id="calendar-view-mode-day"
-            onClick={() => setViewMode('day')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              viewMode === 'day'
-                ? 'bg-[#174e36] text-white shadow-xs font-semibold'
-                : 'text-[#4c5c53] hover:text-[#171c19]'
-            }`}
-          >
-            Tag
-          </button>
-          <button
-            id="calendar-view-mode-week"
-            onClick={() => setViewMode('week')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              viewMode === 'week'
-                ? 'bg-[#174e36] text-white shadow-xs font-semibold'
-                : 'text-[#4c5c53] hover:text-[#171c19]'
-            }`}
-          >
-            Woche
-          </button>
-          <button
-            id="calendar-view-mode-month"
-            onClick={() => setViewMode('month')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              viewMode === 'month'
-                ? 'bg-[#174e36] text-white shadow-xs font-semibold'
-                : 'text-[#4c5c53] hover:text-[#171c19]'
-            }`}
-          >
-            Monat
-          </button>
-        </div>
-
-        {/* Right side: New Event Button + Toggle Tasks Sidebar */}
-        <div className="flex items-center gap-2">
-          <button
-            id="btn-new-calendar-event"
-            onClick={() => {
-              const defaultDate =
-                viewMode === 'day'
-                  ? formatDateKey(currentDate)
-                  : todayStr;
-              openEventModal(undefined, defaultDate, '10:00');
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#174e36] hover:bg-[#12402c] active:scale-[0.98] text-white rounded-xl text-xs font-semibold shadow-xs hover:shadow-md transition-all cursor-pointer"
-            title="Neuen Kalendereintrag eintragen"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Termin eintragen</span>
-          </button>
-
-          <button
-            onClick={() => setShowTaskSidebar(!showTaskSidebar)}
-            className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-semibold transition-colors shadow-xs cursor-pointer ${
-              showTaskSidebar
-                ? 'bg-[#edf5f0] text-[#143d2b] border-[#cfe0d5]'
-                : 'bg-white text-[#52645a] border-[#d8e2db] hover:bg-[#f4f7f5] hover:text-[#171c19]'
-            }`}
-            title="Aufgabenleiste ein-/ausblenden"
-          >
-            <CheckSquare className="w-3.5 h-3.5 text-[#174e36]" />
-            <span>Aufgaben</span>
-          </button>
-        </div>
-      </header>
+      <CalendarHeader
+        getHeaderTitle={getHeaderTitle}
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        navigateDate={navigateDate}
+        getPrevNextTooltip={getPrevNextTooltip}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        showTaskSidebar={showTaskSidebar}
+        setShowTaskSidebar={setShowTaskSidebar}
+        openEventModal={openEventModal}
+        todayStr={todayStr}
+      />
 
       {/* Main Calendar Body */}
       <div className="flex-1 flex overflow-hidden">
@@ -1086,68 +962,12 @@ export const CalendarView: React.FC = () => {
 
         {/* Right Drawer: Drag & Drop Tasks Sidebar */}
         {showTaskSidebar && (
-          <aside
-            id="calendar-tasks-drawer"
-            className="w-64 bg-white border-l border-[#e2e8e3] flex flex-col shrink-0 shadow-xs"
-          >
-            <div className="p-3.5 border-b border-[#e2e8e3] flex items-center justify-between bg-white">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-[#edf5f0] text-[#174e36] flex items-center justify-center border border-[#cfe0d5]">
-                  <CheckSquare className="w-3.5 h-3.5 text-[#174e36]" />
-                </div>
-                <h3 className="text-xs font-bold text-[#171c19]">
-                  Aufgaben einplanen
-                </h3>
-              </div>
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#f4f7f5] text-[#52645a] border border-[#d8e2db]">
-                {unscheduledTasks.length}
-              </span>
-            </div>
-
-            {/* Task list for dragging into calendar */}
-            <div className="flex-1 overflow-y-auto p-2.5 space-y-2 bg-[#f8faf8]">
-              {unscheduledTasks.length === 0 ? (
-                <div className="text-center py-10 text-[#6b7d72] text-xs">
-                  Keine offenen Aufgaben.
-                </div>
-              ) : (
-                unscheduledTasks.map((task) => {
-                  const conf =
-                    CATEGORIES_CONFIG[task.category] || CATEGORIES_CONFIG['Arbeit'];
-                  const isBeingDragged = draggedItem?.id === task.id;
-
-                  return (
-                    <div
-                      key={task.id}
-                      draggable
-                      onDragStart={(e) => handleDragStartTask(e, task)}
-                      onDragEnd={handleDragEnd}
-                      className={`p-2.5 bg-white hover:bg-[#f6faf7] rounded-xl border border-[#e2e8e3] shadow-xs cursor-grab active:cursor-grabbing hover:border-[#174e36] hover:shadow-md transition-all group select-none ${
-                        isBeingDragged ? 'opacity-40 scale-95 ring-2 ring-[#174e36]' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span
-                          className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${conf.badgeClass}`}
-                        >
-                          {task.category}
-                        </span>
-                        <GripVertical className="w-3 h-3 text-[#8e9f94] group-hover:text-[#174e36]" />
-                      </div>
-                      <h4 className="text-xs font-semibold text-[#171c19] leading-snug">
-                        {task.title}
-                      </h4>
-                      {task.description && (
-                        <p className="text-[10px] text-[#52645a] line-clamp-2 mt-0.5">
-                          {task.description}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </aside>
+          <TaskSidebar
+            unscheduledTasks={unscheduledTasks}
+            draggedItem={draggedItem}
+            handleDragStartTask={handleDragStartTask}
+            handleDragEnd={handleDragEnd}
+          />
         )}
       </div>
     </div>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, ArrowRight, CheckSquare, Calendar as CalendarIcon, Sparkles } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { Category, Recurrence, CATEGORIES_CONFIG } from '../types';
-import { formatDateKey } from '../utils/dateUtils';
+import { useApp } from '../../context/AppContext';
+import { Category, Recurrence, CATEGORIES_CONFIG } from '../../types';
+import { formatDateKey } from '../../utils/dateUtils';
 
 export const ConvertIdeaModal: React.FC = () => {
   const {
