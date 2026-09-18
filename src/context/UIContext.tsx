@@ -29,6 +29,9 @@ interface UIContextType {
   editingIdea: Idea | null;
   openIdeaModal: (idea?: Idea) => void;
   closeIdeaModal: () => void;
+
+  isMobileSidebarOpen: boolean;
+  setMobileSidebarOpen: (isOpen: boolean) => void;
 }
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
@@ -49,6 +52,8 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
   const [isIdeaModalOpen, setIsIdeaModalOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
+
+  const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
     <UIContext.Provider
@@ -97,6 +102,8 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           setEditingIdea(null);
           setIsIdeaModalOpen(false);
         },
+        isMobileSidebarOpen,
+        setMobileSidebarOpen,
       }}
     >
       {children}

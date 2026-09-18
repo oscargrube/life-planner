@@ -16,7 +16,7 @@ import { ViewScreen } from '../../types';
 
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
-  const { openAuthModal, openIdeaModal } = useUI();
+  const { isMobileSidebarOpen, setMobileSidebarOpen, openAuthModal, openIdeaModal } = useUI();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -42,24 +42,35 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <aside
-      id="main-sidebar"
-      className="w-64 bg-white text-[#171c19] flex flex-col shrink-0 border-r border-[#e3ebe5] select-none h-screen sticky top-0 transition-colors shadow-xs"
-    >
-      {/* Brand Header */}
-      <div className="p-5 border-b border-[#e3ebe5] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#174e36] to-[#0f3424] border border-[#174e36] flex items-center justify-center shadow-xs text-white">
-            <Sparkles className="w-5 h-5 text-[#86e3b5]" />
-          </div>
-          <div>
-            <h1 className="font-bold text-base text-[#171c19] tracking-tight leading-tight">
-              Lebensplanung
-            </h1>
-            <p className="text-xs text-[#52645a] font-medium">Ideen & Zeitstruktur</p>
+    <>
+      {/* Mobile Backdrop */}
+      {isMobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-[#171c19]/30 backdrop-blur-sm z-30 md:hidden transition-opacity"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        id="main-sidebar"
+        className={`w-64 bg-white text-[#171c19] flex flex-col shrink-0 border-r border-[#e3ebe5] select-none h-screen fixed md:sticky top-0 left-0 z-40 transition-transform duration-300 shadow-xl md:shadow-xs md:translate-x-0 ${
+          isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Brand Header */}
+        <div className="p-5 border-b border-[#e3ebe5] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#174e36] to-[#0f3424] border border-[#174e36] flex items-center justify-center shadow-xs text-white">
+              <Sparkles className="w-5 h-5 text-[#86e3b5]" />
+            </div>
+            <div>
+              <h1 className="font-bold text-base text-[#171c19] tracking-tight leading-tight hidden md:block">
+                Lebensplanung
+              </h1>
+              <p className="text-xs text-[#52645a] font-medium hidden md:block">Ideen & Zeitstruktur</p>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Quick Action Bar - Only + Idee as requested */}
       <div className="p-3.5 border-b border-[#e3ebe5]">
@@ -89,7 +100,10 @@ export const Sidebar: React.FC = () => {
                 <button
                   key={item.id}
                   id={`nav-link-${item.id}`}
-                  onClick={() => navigate(item.path)}
+                  onClick={() => {
+                    navigate(item.path);
+                    setMobileSidebarOpen(false);
+                  }}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                     isActive
                       ? 'bg-[#edf5f0] text-[#143d2b] shadow-xs border border-[#cfe0d5] font-semibold'
@@ -162,5 +176,6 @@ export const Sidebar: React.FC = () => {
         )}
       </div>
     </aside>
+    </>
   );
 };

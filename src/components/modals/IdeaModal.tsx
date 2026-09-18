@@ -61,10 +61,10 @@ export const IdeaModal: React.FC = () => {
   const categories = Object.keys(CATEGORIES_CONFIG) as Category[];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#171c19]/40 backdrop-blur-xs p-4 overflow-y-auto">
       <div
         id="idea-modal"
-        className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-[#e2e8e3] text-[#171c19] overflow-hidden"
+        className="bg-white rounded-t-2xl sm:rounded-2xl max-w-md w-full max-h-[90vh] sm:max-h-full shadow-2xl border border-[#e2e8e3] text-[#171c19] overflow-hidden"
       >
         <div className="p-5 bg-[#fafcfa] border-b border-[#e2e8e3] flex items-center justify-between">
           <div className="flex items-center gap-2.5">

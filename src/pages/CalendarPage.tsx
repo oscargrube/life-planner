@@ -24,7 +24,7 @@ import {
 import { TaskSidebar } from './calendar/TaskSidebar';
 import { CalendarHeader, CalendarViewMode } from './calendar/CalendarHeader';
 
-const HOUR_HEIGHT = 64; // pixels per hour
+const HOUR_HEIGHT = 96; // pixels per hour
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export const CalendarPage: React.FC = () => {
@@ -37,10 +37,23 @@ export const CalendarPage: React.FC = () => {
     convertTaskToEvent,
   } = useApp();
 
-  // Default to week view
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('week');
-  const [showTaskSidebar, setShowTaskSidebar] = useState(true);
+  const [viewMode, setViewMode] = useState<CalendarViewMode>(() => {
+    return window.innerWidth < 768 ? 'day' : 'week';
+  });
+  const [showTaskSidebar, setShowTaskSidebar] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768 && viewMode !== 'day') {
+        setViewMode('day');
+      }
+    };
+    // Force day on initial load
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [viewMode]);
 
   // Live current time state (updates every 30s)
   const [now, setNow] = useState(new Date());
@@ -328,19 +341,17 @@ export const CalendarPage: React.FC = () => {
 
   const getHeaderTitle = () => {
     if (viewMode === 'day') {
-      return currentDate.toLocaleDateString('de-DE', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      });
+      const weekday = currentDate.toLocaleDateString('de-DE', { weekday: 'long' });
+      const day = String(currentDate.getDate()).padStart(2, '0');
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      return `${weekday}, ${day}.${month}.${currentDate.getFullYear()}`;
     }
     if (viewMode === 'week' && weekStart && weekEnd) {
-      const startMonth = monthNames[weekStart.getMonth()];
-      const endMonth = monthNames[weekEnd.getMonth()];
-      return `KW ${currentKW} · ${weekStart.getDate()}. ${
-        startMonth !== endMonth ? startMonth + ' ' : ''
-      }– ${weekEnd.getDate()}. ${endMonth} ${weekEnd.getFullYear()}`;
+      const sDay = String(weekStart.getDate()).padStart(2, '0');
+      const sMonth = String(weekStart.getMonth() + 1).padStart(2, '0');
+      const eDay = String(weekEnd.getDate()).padStart(2, '0');
+      const eMonth = String(weekEnd.getMonth() + 1).padStart(2, '0');
+      return `KW ${currentKW} · ${sDay}.${sMonth}. – ${eDay}.${eMonth}.${weekEnd.getFullYear()}`;
     }
     return `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
   };
@@ -386,8 +397,8 @@ export const CalendarPage: React.FC = () => {
                     <h3 className="text-base font-bold text-[#171c19]">
                       {currentDate.toLocaleDateString('de-DE', {
                         weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
+                        day: '2-digit',
+                        month: '2-digit',
                         year: 'numeric',
                       })}
                     </h3>
@@ -406,7 +417,7 @@ export const CalendarPage: React.FC = () => {
               {/* Day Hourly Grid */}
               <div
                 ref={dayTimelineScrollRef}
-                className="flex-1 overflow-y-auto overflow-x-hidden relative bg-white"
+                className="flex-1 overflow-y-auto overflow-x-hidden relative bg-white no-scrollbar"
               >
                 <div
                   className="grid grid-cols-[72px_1fr] divide-x divide-[#e8eee9] relative"
@@ -425,17 +436,6 @@ export const CalendarPage: React.FC = () => {
                         </span>
                       </div>
                     ))}
-
-                    {/* Current time badge */}
-                    {dayViewDateString === todayStr && (
-                      <div
-                        className="absolute right-1 z-30 transform -translate-y-1/2 flex items-center gap-1 bg-[#174e36] border border-[#143d2b] text-white px-2 py-0.5 rounded-full text-xs font-bold shadow-xs"
-                        style={{ top: `${currentTimeTop}px` }}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-ping" />
-                        <span>{currentTimeStr}</span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Day Column */}
@@ -544,7 +544,7 @@ export const CalendarPage: React.FC = () => {
                         className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
                         style={{ top: `${currentTimeTop}px` }}
                       >
-                        <div className="w-3.5 h-3.5 -ml-1.5 rounded-full bg-[#174e36] ring-4 ring-[#174e36]/20 shadow-xs animate-pulse" />
+                        <div className="w-2.5 h-2.5 -ml-1 rounded-full bg-[#174e36] ring-2 ring-[#174e36]/25 shadow-xs animate-pulse" />
                         <div className="h-[2px] w-full bg-[#174e36] shadow-xs" />
                       </div>
                     )}
@@ -576,20 +576,20 @@ export const CalendarPage: React.FC = () => {
                           >
                             <div className="min-w-0">
                               <div className="flex items-center justify-between gap-1">
-                                <span className="text-xs font-bold text-[#174e36] opacity-90 shrink-0">
+                                <span className="text-xs font-extrabold text-[#171c19] shrink-0">
                                   {evt.time} ({evt.durationMinutes || 60} Min)
                                 </span>
                                 {evt.recurrence !== 'none' && (
-                                  <Repeat className="w-3 h-3 opacity-75 shrink-0" />
+                                  <Repeat className={`w-3 h-3 opacity-75 shrink-0 ${conf.textDark}`} />
                                 )}
                               </div>
-                              <h4 className="text-xs font-bold leading-snug truncate mt-0.5 text-[#171c19]">
+                              <h4 className={`text-xs font-bold leading-snug truncate mt-0.5 ${conf.textDark}`}>
                                 {evt.title}
                               </h4>
                             </div>
 
                             {height >= 48 && evt.description && (
-                              <p className="text-[11px] opacity-75 truncate mt-0.5">
+                              <p className={`text-[11px] font-medium opacity-85 truncate mt-0.5 ${conf.textDark}`}>
                                 {evt.description}
                               </p>
                             )}
@@ -660,7 +660,7 @@ export const CalendarPage: React.FC = () => {
               {/* Scrollable Timeline Grid */}
               <div
                 ref={timelineScrollRef}
-                className="flex-1 overflow-y-auto overflow-x-hidden relative bg-white"
+                className="flex-1 overflow-y-auto overflow-x-hidden relative bg-white no-scrollbar"
               >
                 <div
                   className="grid grid-cols-[72px_repeat(7,1fr)] divide-x divide-[#e8eee9] relative"
@@ -679,15 +679,6 @@ export const CalendarPage: React.FC = () => {
                         </span>
                       </div>
                     ))}
-
-                    {/* Left time badge for current time */}
-                    <div
-                      className="absolute right-1 z-30 transform -translate-y-1/2 flex items-center gap-1 bg-[#174e36] border border-[#143d2b] text-white px-1.5 py-0.5 rounded-full text-xs font-bold shadow-xs"
-                      style={{ top: `${currentTimeTop}px` }}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-ping" />
-                      <span>{currentTimeStr}</span>
-                    </div>
                   </div>
 
                   {/* 7 Days Columns */}
@@ -804,7 +795,7 @@ export const CalendarPage: React.FC = () => {
                             className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
                             style={{ top: `${currentTimeTop}px` }}
                           >
-                            <div className="w-3.5 h-3.5 -ml-1.5 rounded-full bg-[#174e36] ring-4 ring-[#174e36]/20 shadow-xs animate-pulse" />
+                            <div className="w-2.5 h-2.5 -ml-1 rounded-full bg-[#174e36] ring-2 ring-[#174e36]/25 shadow-xs animate-pulse" />
                             <div className="h-[2px] w-full bg-[#174e36] shadow-xs" />
                           </div>
                         )}
@@ -836,20 +827,20 @@ export const CalendarPage: React.FC = () => {
                               >
                                 <div className="min-w-0">
                                   <div className="flex items-center justify-between gap-1">
-                                    <span className="text-[11px] font-bold text-[#174e36] opacity-90 shrink-0">
+                                    <span className="text-[11px] font-extrabold text-[#171c19] shrink-0">
                                       {evt.time}
                                     </span>
                                     {evt.recurrence !== 'none' && (
-                                      <Repeat className="w-2.5 h-2.5 opacity-70 shrink-0" />
+                                      <Repeat className={`w-2.5 h-2.5 opacity-75 shrink-0 ${conf.textDark}`} />
                                     )}
                                   </div>
-                                  <h4 className="text-xs font-semibold leading-snug truncate mt-0.5">
+                                  <h4 className={`text-xs font-bold leading-snug truncate mt-0.5 ${conf.textDark}`}>
                                     {evt.title}
                                   </h4>
                                 </div>
 
                                 {height >= 48 && evt.description && (
-                                  <p className="text-[10px] opacity-75 truncate mt-0.5">
+                                  <p className={`text-[10px] font-medium opacity-85 truncate mt-0.5 ${conf.textDark}`}>
                                     {evt.description}
                                   </p>
                                 )}
@@ -881,7 +872,7 @@ export const CalendarPage: React.FC = () => {
               </div>
 
               {/* Month Grid Cells */}
-              <div className="grid grid-cols-7 flex-1 divide-x divide-y divide-[#e8eee9] overflow-y-auto">
+              <div className="grid grid-cols-7 flex-1 divide-x divide-y divide-[#e8eee9] overflow-y-auto no-scrollbar">
                 {calendarDays.map((dayItem, idx) => {
                   const dayEvents = filteredEvents.filter((e) =>
                     isEventOnDate(e.date, e.recurrence, dayItem.dateString)
@@ -940,10 +931,10 @@ export const CalendarPage: React.FC = () => {
                               title="Klicken zum Bearbeiten, ziehen zum Verschieben"
                             >
                               <div className="flex items-center gap-1.5 min-w-0 truncate">
-                                <span className="text-[10px] opacity-90 shrink-0 font-bold text-[#174e36]">
+                                <span className="text-[10px] shrink-0 font-extrabold text-[#171c19]">
                                   {evt.time}
                                 </span>
-                                <span className="truncate">{evt.title}</span>
+                                <span className={`truncate font-semibold ${conf.textDark}`}>{evt.title}</span>
                               </div>
                               {evt.recurrence !== 'none' && (
                                 <Repeat className="w-2.5 h-2.5 opacity-60 shrink-0" />
@@ -967,6 +958,7 @@ export const CalendarPage: React.FC = () => {
             draggedItem={draggedItem}
             handleDragStartTask={handleDragStartTask}
             handleDragEnd={handleDragEnd}
+            onClose={() => setShowTaskSidebar(false)}
           />
         )}
       </div>

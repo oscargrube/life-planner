@@ -98,7 +98,7 @@ export const AuthModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#171c19]/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
       <div
         className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-[#e3ebe5] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
