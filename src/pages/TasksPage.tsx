@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   CheckSquare,
   Plus,
@@ -8,20 +9,32 @@ import {
   Trash2,
   Edit2,
   Sparkles,
+  FolderKanban,
+  User as UserIcon,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { Recurrence, CATEGORIES_CONFIG, Category } from '../types';
+import {
+  Recurrence,
+  CATEGORIES_CONFIG,
+  Category,
+  TASK_PRIORITY_CONFIG,
+} from '../types';
 import { getTodayDateKey } from '../utils/dateUtils';
 
 export const TasksPage: React.FC = () => {
+  const navigate = useNavigate();
   const {
     tasks,
+    projects,
     selectedCategory,
     setSelectedCategory,
+    selectedProjectFilter,
+    setSelectedProjectFilter,
     openTaskModal,
     deleteTask,
     toggleTaskCompleted,
     openEventModal,
+    getUserLabel,
   } = useApp();
 
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'completed'>('open');
@@ -34,6 +47,10 @@ export const TasksPage: React.FC = () => {
   const filteredTasks = tasks.filter((task) => {
     const matchesCategory =
       selectedCategory === 'all' || task.category === selectedCategory;
+    const matchesProject =
+      selectedProjectFilter === 'all' ||
+      (selectedProjectFilter === 'private' && !task.projectId) ||
+      task.projectId === selectedProjectFilter;
     const matchesStatus =
       statusFilter === 'all' ||
       (statusFilter === 'open' && !task.completed) ||
@@ -45,7 +62,13 @@ export const TasksPage: React.FC = () => {
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    return matchesCategory && matchesStatus && matchesRecurrence && matchesSearch;
+    return (
+      matchesCategory &&
+      matchesProject &&
+      matchesStatus &&
+      matchesRecurrence &&
+      matchesSearch
+    );
   });
 
   return (
@@ -62,7 +85,7 @@ export const TasksPage: React.FC = () => {
             </h2>
           </div>
           <p className="text-xs text-[#52645a] mt-1">
-            Konkrete Todos, wiederkehrende Gewohnheiten und Fälligkeiten
+            Private Todos und Aufgaben aus deinen Projekten im Überblick
           </p>
         </div>
 
@@ -114,6 +137,29 @@ export const TasksPage: React.FC = () => {
                 Alle ({tasks.length})
               </button>
             </div>
+
+            {/* Project Filter Dropdown */}
+            {projects.length > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 text-xs text-[#52645a]">
+                  <FolderKanban className="w-3.5 h-3.5 text-[#174e36]" />
+                  <span>Projekt:</span>
+                </div>
+                <select
+                  value={selectedProjectFilter}
+                  onChange={(e) => setSelectedProjectFilter(e.target.value)}
+                  className="px-2.5 py-1.5 bg-white border border-[#d8e2db] rounded-xl text-xs text-[#171c19] outline-none cursor-pointer"
+                >
+                  <option value="all">Alle (Privat & Projekte)</option>
+                  <option value="private">Nur Privat</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Recurrence Filter */}
             <div className="flex items-center gap-2">
@@ -195,6 +241,9 @@ export const TasksPage: React.FC = () => {
           <div className="space-y-3">
             {filteredTasks.map((task) => {
               const conf = CATEGORIES_CONFIG[task.category] || CATEGORIES_CONFIG['Arbeit'];
+              const proj = task.projectId ? projects.find((p) => p.id === task.projectId) : undefined;
+              const prioConf = task.priority ? TASK_PRIORITY_CONFIG[task.priority] : undefined;
+
               return (
                 <div
                   key={task.id}
@@ -217,6 +266,36 @@ export const TasksPage: React.FC = () => {
                         >
                           {task.category}
                         </span>
+
+                        {proj && (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/projects/${proj.id}`)}
+                            className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#d8e2db] bg-[#fafcfa] hover:bg-[#edf5f0] text-[#171c19] cursor-pointer"
+                            title="Zum Projekt öffnen"
+                          >
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: proj.color }}
+                            />
+                            <span>{proj.title}</span>
+                          </button>
+                        )}
+
+                        {prioConf && task.priority !== 'medium' && (
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${prioConf.bgClass}`}
+                          >
+                            {prioConf.label}
+                          </span>
+                        )}
+
+                        {task.assigneeId && (
+                          <span className="flex items-center gap-1 text-[10px] font-semibold text-[#174e36] bg-[#edf5f0] border border-[#cfe0d5] px-2 py-0.5 rounded-md">
+                            <UserIcon className="w-2.5 h-2.5" />
+                            <span>{getUserLabel(task.assigneeId)}</span>
+                          </span>
+                        )}
 
                         {task.recurrence !== 'none' && (
                           <span className="flex items-center gap-1 text-[10px] font-semibold text-[#143d2b] bg-[#edf5f0] border border-[#cfe0d5] px-2 py-0.5 rounded-md">
@@ -262,24 +341,29 @@ export const TasksPage: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {/* Convert / Schedule in Calendar */}
                     {!task.completed && (
                       <button
                         onClick={() =>
-                          openEventModal({
-                            id: '',
-                            userId: '',
-                            title: task.title,
-                            description: task.description,
-                            date: task.dueDate || getTodayDateKey(),
-                            time: '10:00',
-                            durationMinutes: 60,
-                            category: task.category,
-                            recurrence: task.recurrence,
-                            sourceTaskId: task.id,
-                            createdAt: '',
-                            updatedAt: '',
-                          })
+                          openEventModal(
+                            {
+                              id: '',
+                              userId: '',
+                              title: task.title,
+                              description: task.description,
+                              date: task.dueDate || getTodayDateKey(),
+                              time: '10:00',
+                              durationMinutes: 60,
+                              category: task.category,
+                              recurrence: task.recurrence,
+                              projectId: task.projectId,
+                              sourceTaskId: task.id,
+                              createdAt: '',
+                              updatedAt: '',
+                            },
+                            task.dueDate || getTodayDateKey(),
+                            '10:00',
+                            task.projectId
+                          )
                         }
                         className="p-1.5 text-[#52645a] hover:text-[#174e36] hover:bg-[#edf5f0] rounded-lg transition-colors cursor-pointer"
                         title="Als Kalendertermin einplanen"
@@ -289,7 +373,7 @@ export const TasksPage: React.FC = () => {
                     )}
 
                     <button
-                      onClick={() => openTaskModal(task)}
+                      onClick={() => openTaskModal(task, task.projectId)}
                       className="p-1.5 text-[#52645a] hover:text-[#171c19] hover:bg-[#f3f7f4] rounded-lg transition-colors cursor-pointer"
                       title="Aufgabe bearbeiten"
                     >

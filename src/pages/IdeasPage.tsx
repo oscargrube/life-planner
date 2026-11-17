@@ -17,12 +17,11 @@ export const IdeasPage: React.FC = () => {
   const { setMobileSidebarOpen } = useUI();
   const {
     ideas,
+    projects,
     selectedCategory,
     setSelectedCategory,
     openIdeaModal,
-    deleteIdea,
     openConvertIdeaModal,
-    addIdea,
   } = useApp();
 
   const categories = Object.keys(CATEGORIES_CONFIG) as Category[];
@@ -122,6 +121,7 @@ export const IdeasPage: React.FC = () => {
             {sortedIdeas.map((idea) => {
               const conf = CATEGORIES_CONFIG[idea.category] || CATEGORIES_CONFIG['Persönlich'];
               const isConverted = idea.status === 'converted';
+              const proj = idea.projectId ? projects.find((p) => p.id === idea.projectId) : undefined;
 
               return (
                 <div
@@ -131,11 +131,22 @@ export const IdeasPage: React.FC = () => {
                 >
                   {/* Category & Status / Actions */}
                   <div className="flex items-center justify-between gap-2 mb-3">
-                    <span
-                      className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${conf.bgLight}`}
-                    >
-                      {idea.category}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span
+                        className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${conf.bgLight}`}
+                      >
+                        {idea.category}
+                      </span>
+                      {proj && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#d8e2db] bg-[#fafcfa] text-[#171c19]">
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: proj.color }}
+                          />
+                          {proj.title}
+                        </span>
+                      )}
+                    </div>
 
                     {isConverted ? (
                       <span className="flex items-center gap-1 text-[11px] text-[#174e36] bg-[#edf5f0] border border-[#cfe0d5] px-2 py-0.5 rounded-full font-medium" title="Weiterentwickelt">

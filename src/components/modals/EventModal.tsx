@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Trash2, Users } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Category, Recurrence, CATEGORIES_CONFIG } from '../../types';
 import { getTodayDateKey } from '../../utils/dateUtils';
@@ -31,10 +31,13 @@ export const EventModal: React.FC = () => {
     editingEvent,
     presetEventDate,
     presetEventTime,
+    presetEventProjectId,
     closeEventModal,
     addEvent,
     updateEvent,
     deleteEvent,
+    projects,
+    getUserLabel,
   } = useApp();
 
   const [title, setTitle] = useState('');
@@ -45,6 +48,7 @@ export const EventModal: React.FC = () => {
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [category, setCategory] = useState<Category>('Arbeit');
   const [recurrence, setRecurrence] = useState<Recurrence>('none');
+  const [projectId, setProjectId] = useState('');
 
   useEffect(() => {
     if (editingEvent) {
@@ -58,6 +62,7 @@ export const EventModal: React.FC = () => {
       setEndTime(minutesToTime(timeToMinutes(start) + dur));
       setCategory(editingEvent.category);
       setRecurrence(editingEvent.recurrence);
+      setProjectId(editingEvent.projectId || presetEventProjectId || '');
     } else {
       const start = presetEventTime || '10:00';
       setTitle('');
@@ -66,12 +71,15 @@ export const EventModal: React.FC = () => {
       setTime(start);
       setDurationMinutes(60);
       setEndTime(minutesToTime(timeToMinutes(start) + 60));
-      setCategory('Arbeit');
+      setCategory(presetEventProjectId ? 'Projekt' : 'Arbeit');
       setRecurrence('none');
+      setProjectId(presetEventProjectId || '');
     }
-  }, [editingEvent, presetEventDate, presetEventTime, isEventModalOpen]);
+  }, [editingEvent, presetEventDate, presetEventTime, presetEventProjectId, isEventModalOpen]);
 
   if (!isEventModalOpen) return null;
+
+  const isExistingEvent = Boolean(editingEvent && editingEvent.id);
 
   const handleStartTimeChange = (newStart: string) => {
     const prevDur = Math.max(15, durationMinutes || 60);
@@ -101,7 +109,7 @@ export const EventModal: React.FC = () => {
     const endM = timeToMinutes(endTime);
     const finalDuration = endM > startM ? endM - startM : Math.max(15, durationMinutes);
 
-    if (editingEvent) {
+    if (isExistingEvent && editingEvent) {
       await updateEvent(editingEvent.id, {
         title,
         description,
@@ -110,6 +118,7 @@ export const EventModal: React.FC = () => {
         durationMinutes: finalDuration,
         category,
         recurrence,
+        projectId: projectId || undefined,
       });
     } else {
       await addEvent({
@@ -120,13 +129,16 @@ export const EventModal: React.FC = () => {
         durationMinutes: finalDuration,
         category,
         recurrence,
+        projectId: projectId || undefined,
+        sourceTaskId: editingEvent?.sourceTaskId,
+        sourceIdeaId: editingEvent?.sourceIdeaId,
       });
     }
     closeEventModal();
   };
 
   const handleDelete = async () => {
-    if (editingEvent) {
+    if (isExistingEvent && editingEvent) {
       await deleteEvent(editingEvent.id);
       closeEventModal();
     }
@@ -149,7 +161,7 @@ export const EventModal: React.FC = () => {
             </div>
             <div>
               <h2 className="text-base font-bold text-[#171c19] leading-tight">
-                {editingEvent ? 'Termin bearbeiten' : 'Neuen Termin eintragen'}
+                {isExistingEvent ? 'Termin bearbeiten' : 'Neuen Termin eintragen'}
               </h2>
               <p className="text-xs text-[#52645a]">Im Kalender zeitlich verankern</p>
             </div>
@@ -165,6 +177,18 @@ export const EventModal: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-5 space-y-3.5">
+            {editingEvent?.isShared && editingEvent.participantIds && (
+              <div className="p-3 bg-[#edf5f0] border border-[#cfe0d5] rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#174e36]">
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Gemeinsamer Termin</span>
+                </div>
+                <p className="text-[11px] text-[#37443d]">
+                  Teilnehmer: {editingEvent.participantIds.map((id) => getUserLabel(id)).join(', ')}
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-semibold text-[#37443d] mb-1.5">
                 Titel des Termins *
@@ -178,6 +202,26 @@ export const EventModal: React.FC = () => {
                 className="w-full px-3.5 py-2 rounded-xl border border-[#d8e2db] bg-white text-[#171c19] placeholder-[#7d8e84] focus:border-[#174e36] focus:ring-1 focus:ring-[#174e36]/30 text-sm outline-none transition-all"
               />
             </div>
+
+            {projects.length > 0 && (
+              <div>
+                <label className="block text-xs font-semibold text-[#37443d] mb-1.5">
+                  Projekt zuordnen (optional)
+                </label>
+                <select
+                  value={projectId}
+                  onChange={(e) => setProjectId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-[#d8e2db] bg-white text-[#171c19] focus:border-[#174e36] text-xs font-medium outline-none cursor-pointer"
+                >
+                  <option value="">Privat (kein Projekt)</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -296,7 +340,7 @@ export const EventModal: React.FC = () => {
           </div>
 
           <div className="px-4 sm:px-5 py-3.5 flex items-center justify-between border-t border-[#e8eee9] bg-[#fafcfa] shrink-0">
-            {editingEvent ? (
+            {isExistingEvent ? (
               <button
                 type="button"
                 onClick={handleDelete}
@@ -321,7 +365,7 @@ export const EventModal: React.FC = () => {
                 type="submit"
                 className="px-5 py-2 bg-[#174e36] hover:bg-[#12402c] active:scale-[0.98] text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer"
               >
-                {editingEvent ? 'Speichern' : 'Termin anlegen'}
+                {isExistingEvent ? 'Speichern' : 'Termin anlegen'}
               </button>
             </div>
           </div>

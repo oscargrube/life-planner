@@ -7,27 +7,32 @@ export const IdeaModal: React.FC = () => {
   const {
     isIdeaModalOpen,
     editingIdea,
+    presetIdeaProjectId,
     closeIdeaModal,
     addIdea,
     updateIdea,
     deleteIdea,
+    projects,
   } = useApp();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<Category>('Persönlich');
+  const [projectId, setProjectId] = useState('');
 
   useEffect(() => {
     if (editingIdea) {
       setTitle(editingIdea.title);
       setDescription(editingIdea.description || '');
       setCategory(editingIdea.category);
+      setProjectId(editingIdea.projectId || '');
     } else {
       setTitle('');
       setDescription('');
-      setCategory('Persönlich');
+      setCategory(presetIdeaProjectId ? 'Projekt' : 'Persönlich');
+      setProjectId(presetIdeaProjectId || '');
     }
-  }, [editingIdea, isIdeaModalOpen]);
+  }, [editingIdea, presetIdeaProjectId, isIdeaModalOpen]);
 
   if (!isIdeaModalOpen) return null;
 
@@ -40,12 +45,14 @@ export const IdeaModal: React.FC = () => {
         title,
         description,
         category,
+        projectId: projectId || undefined,
       });
     } else {
       await addIdea({
         title,
         description,
         category,
+        projectId: projectId || undefined,
       });
     }
     closeIdeaModal();
@@ -98,6 +105,26 @@ export const IdeaModal: React.FC = () => {
               autoFocus
             />
           </div>
+
+          {projects.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-[#37443d] mb-1.5">
+                Projekt zuordnen (optional)
+              </label>
+              <select
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-[#d8e2db] bg-white text-[#171c19] focus:border-[#174e36] text-xs font-medium outline-none cursor-pointer"
+              >
+                <option value="">Privat (kein Projekt)</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-[#37443d] mb-1.5">

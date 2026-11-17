@@ -8,6 +8,7 @@ import {
   CheckSquare,
   GripVertical,
   Plus,
+  Users,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { CalendarEvent, Task, CATEGORIES_CONFIG } from '../types';
@@ -31,7 +32,9 @@ export const CalendarPage: React.FC = () => {
   const {
     events,
     tasks,
+    projects,
     selectedCategory,
+    selectedProjectFilter,
     openEventModal,
     updateEvent,
     moveEventDate,
@@ -183,13 +186,17 @@ export const CalendarPage: React.FC = () => {
     }
   };
 
-  // Filter events by selectedCategory
+  // Filter events by selectedCategory and selectedProjectFilter
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
-      if (selectedCategory === 'all') return true;
-      return e.category === selectedCategory;
+      const catMatch = selectedCategory === 'all' || e.category === selectedCategory;
+      const projMatch =
+        selectedProjectFilter === 'all' ||
+        (selectedProjectFilter === 'private' && !e.projectId && !e.isShared) ||
+        e.projectId === selectedProjectFilter;
+      return catMatch && projMatch;
     });
-  }, [events, selectedCategory]);
+  }, [events, selectedCategory, selectedProjectFilter]);
 
   // Filter unscheduled tasks
   const unscheduledTasks = useMemo(() => {
@@ -736,9 +743,29 @@ export const CalendarPage: React.FC = () => {
                                 <span className="text-xs font-extrabold text-[#171c19] shrink-0">
                                   {evt.time} – {formatEndTime(evt.time, effectiveDuration)} ({effectiveDuration} Min)
                                 </span>
-                                {evt.recurrence !== 'none' && (
-                                  <Repeat className={`w-3 h-3 opacity-75 shrink-0 ${conf.textDark}`} />
-                                )}
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {evt.projectId && (
+                                    <span
+                                      className="w-2 h-2 rounded-full shrink-0"
+                                      style={{
+                                        backgroundColor:
+                                          projects.find((p) => p.id === evt.projectId)?.color || '#174e36',
+                                      }}
+                                      title={projects.find((p) => p.id === evt.projectId)?.title || 'Projekt'}
+                                    />
+                                  )}
+                                  {(evt.isShared || (evt.participantIds && evt.participantIds.length > 1)) && (
+                                    <span
+                                      className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/80 text-[#174e36]"
+                                      title="Gemeinsamer Termin"
+                                    >
+                                      <Users className="w-2.5 h-2.5" />
+                                    </span>
+                                  )}
+                                  {evt.recurrence !== 'none' && (
+                                    <Repeat className={`w-3 h-3 opacity-75 shrink-0 ${conf.textDark}`} />
+                                  )}
+                                </div>
                               </div>
                               <h4 className={`text-xs font-bold leading-snug truncate mt-0.5 ${conf.textDark}`}>
                                 {evt.title}
@@ -1009,9 +1036,24 @@ export const CalendarPage: React.FC = () => {
                                         ? `${evt.time} – ${formatEndTime(evt.time, effectiveDuration)}`
                                         : evt.time}
                                     </span>
-                                    {evt.recurrence !== 'none' && (
-                                      <Repeat className={`w-2.5 h-2.5 opacity-75 shrink-0 ${conf.textDark}`} />
-                                    )}
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      {evt.projectId && (
+                                        <span
+                                          className="w-2 h-2 rounded-full shrink-0"
+                                          style={{
+                                            backgroundColor:
+                                              projects.find((p) => p.id === evt.projectId)?.color || '#174e36',
+                                          }}
+                                          title={projects.find((p) => p.id === evt.projectId)?.title || 'Projekt'}
+                                        />
+                                      )}
+                                      {(evt.isShared || (evt.participantIds && evt.participantIds.length > 1)) && (
+                                        <Users className="w-2.5 h-2.5 text-[#174e36] shrink-0" title="Gemeinsamer Termin" />
+                                      )}
+                                      {evt.recurrence !== 'none' && (
+                                        <Repeat className={`w-2.5 h-2.5 opacity-75 shrink-0 ${conf.textDark}`} />
+                                      )}
+                                    </div>
                                   </div>
                                   <h4 className={`text-xs font-bold leading-snug truncate mt-0.5 ${conf.textDark}`}>
                                     {evt.title}
@@ -1186,14 +1228,28 @@ export const CalendarPage: React.FC = () => {
                                       title="Klicken zum Bearbeiten, ziehen zum Verschieben"
                                     >
                                       <div className="flex items-center gap-1.5 min-w-0 truncate">
+                                        {evt.projectId && (
+                                          <span
+                                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                                            style={{
+                                              backgroundColor:
+                                                projects.find((p) => p.id === evt.projectId)?.color || '#174e36',
+                                            }}
+                                          />
+                                        )}
                                         <span className="text-[10px] shrink-0 font-extrabold text-[#171c19]">
                                           {evt.time}
                                         </span>
                                         <span className={`truncate font-semibold ${conf.textDark}`}>{evt.title}</span>
                                       </div>
-                                      {evt.recurrence !== 'none' && (
-                                        <Repeat className="w-2.5 h-2.5 opacity-60 shrink-0" />
-                                      )}
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        {(evt.isShared || (evt.participantIds && evt.participantIds.length > 1)) && (
+                                          <Users className="w-2.5 h-2.5 text-[#174e36] shrink-0" />
+                                        )}
+                                        {evt.recurrence !== 'none' && (
+                                          <Repeat className="w-2.5 h-2.5 opacity-60 shrink-0" />
+                                        )}
+                                      </div>
                                     </div>
                                   );
                                 })}

@@ -12,6 +12,10 @@ export type Recurrence = 'none' | 'daily' | 'weekly' | 'monthly';
 
 export type IdeaStatus = 'new' | 'evolving' | 'converted' | 'archived';
 
+export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'done';
+export type TaskPriority = 'low' | 'medium' | 'high';
+export type ProjectStatus = 'planning' | 'active' | 'completed' | 'archived';
+
 export interface Idea {
   id: string;
   userId: string;
@@ -19,6 +23,9 @@ export interface Idea {
   description?: string;
   category: Category;
   status: IdeaStatus;
+  projectId?: string;
+  authorId?: string;
+  authorName?: string;
   convertedTo?: {
     type: 'task' | 'event';
     targetId: string;
@@ -36,6 +43,10 @@ export interface Task {
   recurrence: Recurrence;
   completed: boolean;
   dueDate?: string; // YYYY-MM-DD
+  projectId?: string;
+  assigneeId?: string;
+  kanbanStatus?: TaskStatus;
+  priority?: TaskPriority;
   sourceIdeaId?: string;
   sourceIdeaTitle?: string;
   createdAt: string;
@@ -52,13 +63,204 @@ export interface CalendarEvent {
   durationMinutes: number; // e.g. 60
   category: Category;
   recurrence: Recurrence;
+  projectId?: string;
+  friendGroupId?: string;
+  participantIds?: string[];
+  isShared?: boolean;
+  eventRequestId?: string;
+  createdByName?: string;
   sourceTaskId?: string;
   sourceIdeaId?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export type ViewScreen = 'calendar' | 'ideas' | 'tasks';
+export type ViewScreen = 'calendar' | 'ideas' | 'tasks' | 'projects' | 'social';
+
+// ==========================================
+// Social, Availability, Projects & Chats
+// ==========================================
+
+export interface UserProfile {
+  uid: string;
+  username: string; // normalized lowercase handle without @
+  displayName: string;
+  email?: string;
+  photoURL?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BusySlot {
+  eventId: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  durationMinutes: number;
+  recurrence: Recurrence;
+}
+
+export interface UserAvailability {
+  uid: string;
+  busySlots: BusySlot[];
+  updatedAt: string;
+}
+
+export interface Friendship {
+  id: string;
+  users: [string, string]; // sorted [uid1, uid2]
+  requesterId: string;
+  recipientId: string;
+  status: 'pending' | 'accepted' | 'declined';
+  shareAvailabilityByUser: Record<string, boolean>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FriendGroup {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+  createdBy: string;
+  memberIds: string[];
+  pendingMemberIds: string[];
+  availabilitySharedBy: Record<string, boolean>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Project {
+  id: string;
+  title: string;
+  description?: string;
+  color: string;
+  ownerId: string;
+  memberIds: string[];
+  availabilitySharedBy: Record<string, boolean>;
+  status: ProjectStatus;
+  targetDate?: string; // YYYY-MM-DD
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectInvite {
+  id: string;
+  projectId: string;
+  projectTitle: string;
+  projectColor: string;
+  inviterId: string;
+  inviteeId: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EventRequestResponse = 'pending' | 'accepted' | 'declined';
+
+export interface EventRequest {
+  id: string;
+  title: string;
+  description?: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  durationMinutes: number;
+  category: Category;
+  recurrence: Recurrence;
+  creatorId: string;
+  projectId?: string;
+  friendGroupId?: string;
+  inviteeIds: string[];
+  responses: Record<string, EventRequestResponse>;
+  createdEventId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ChatRoomType = 'dm' | 'project' | 'group';
+
+export interface ChatRoom {
+  id: string;
+  type: ChatRoomType;
+  title?: string;
+  participantIds: string[];
+  projectId?: string;
+  friendGroupId?: string;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  lastMessageSenderId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  chatId: string;
+  senderId: string;
+  senderName: string;
+  text: string;
+  attachmentType?: 'event_request' | 'task' | 'idea';
+  attachmentData?: Record<string, any>;
+  createdAt: string;
+}
+
+export const PROJECT_COLORS = [
+  '#174e36',
+  '#0284c7',
+  '#7c3aed',
+  '#d97706',
+  '#e11d48',
+  '#0d9488',
+  '#ea580c',
+  '#4f46e5',
+];
+
+export const TASK_STATUS_CONFIG: Record<
+  TaskStatus,
+  { label: string; color: string; bgClass: string; dotClass: string }
+> = {
+  backlog: {
+    label: 'Backlog',
+    color: '#64748b',
+    bgClass: 'bg-slate-100 text-slate-700 border-slate-200',
+    dotClass: 'bg-slate-400',
+  },
+  todo: {
+    label: 'Zu erledigen',
+    color: '#0284c7',
+    bgClass: 'bg-sky-50 text-sky-800 border-sky-200',
+    dotClass: 'bg-sky-500',
+  },
+  in_progress: {
+    label: 'In Arbeit',
+    color: '#d97706',
+    bgClass: 'bg-amber-50 text-amber-800 border-amber-200',
+    dotClass: 'bg-amber-500',
+  },
+  done: {
+    label: 'Erledigt',
+    color: '#059669',
+    bgClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    dotClass: 'bg-emerald-500',
+  },
+};
+
+export const TASK_PRIORITY_CONFIG: Record<
+  TaskPriority,
+  { label: string; bgClass: string }
+> = {
+  low: {
+    label: 'Niedrig',
+    bgClass: 'bg-slate-50 text-slate-600 border-slate-200',
+  },
+  medium: {
+    label: 'Mittel',
+    bgClass: 'bg-amber-50 text-amber-700 border-amber-200',
+  },
+  high: {
+    label: 'Hoch',
+    bgClass: 'bg-rose-50 text-rose-700 border-rose-200',
+  },
+};
 
 export interface CategoryConfig {
   label: Category;

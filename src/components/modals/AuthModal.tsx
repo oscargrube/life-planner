@@ -1,6 +1,19 @@
-import React, { useState } from 'react';
-import { X, Mail, Lock, User, Eye, EyeOff, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  X,
+  Mail,
+  Lock,
+  User,
+  AtSign,
+  Eye,
+  EyeOff,
+  Sparkles,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+} from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { isUsernameAvailable, isValidUsername, normalizeUsername } from '../../firebase/service';
 
 type Mode = 'login' | 'register' | 'reset';
 
@@ -15,14 +28,39 @@ export const AuthModal: React.FC = () => {
   } = useApp();
 
   const [mode, setMode] = useState<Mode>('login');
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (mode !== 'register') return;
+    const clean = normalizeUsername(username);
+    if (!clean) {
+      setUsernameStatus('idle');
+      return;
+    }
+    if (!isValidUsername(clean)) {
+      setUsernameStatus('invalid');
+      return;
+    }
+    setUsernameStatus('checking');
+    const timer = setTimeout(async () => {
+      try {
+        const available = await isUsernameAvailable(clean);
+        setUsernameStatus(available ? 'available' : 'taken');
+      } catch {
+        setUsernameStatus('idle');
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [username, mode]);
 
   if (!isAuthModalOpen) return null;
 
@@ -44,7 +82,7 @@ export const AuthModal: React.FC = () => {
       case 'auth/user-not-found':
       case 'auth/wrong-password':
       case 'auth/invalid-credential':
-        return 'E-Mail oder Passwort ist falsch.';
+        return 'Anmeldedaten oder Passwort sind falsch.';
       case 'auth/email-already-in-use':
         return 'Diese E-Mail-Adresse wird bereits verwendet.';
       case 'auth/weak-password':
@@ -65,17 +103,27 @@ export const AuthModal: React.FC = () => {
 
     try {
       if (mode === 'login') {
-        await loginWithEmail(email, password);
+        if (!identifier.trim() || !password.trim()) {
+          throw new Error('Bitte gib E-Mail/Benutzername und Passwort ein.');
+        }
+        await loginWithEmail(identifier.trim(), password);
       } else if (mode === 'register') {
-        if (!email.trim() || !password.trim()) {
+        const cleanUser = normalizeUsername(username);
+        if (!isValidUsername(cleanUser)) {
+          throw new Error('Benutzername muss 3–20 Zeichen lang sein (a-z, 0-9, _).');
+        }
+        if (usernameStatus === 'taken') {
+          throw new Error('Dieser Benutzername ist bereits vergeben.');
+        }
+        if (!identifier.trim() || !password.trim()) {
           throw new Error('Bitte fülle alle Pflichtfelder aus.');
         }
-        await registerWithEmail(email, password, displayName.trim());
+        await registerWithEmail(identifier.trim(), password, displayName.trim(), cleanUser);
       } else if (mode === 'reset') {
-        if (!email.trim()) {
+        if (!identifier.trim()) {
           throw new Error('Bitte gib deine E-Mail-Adresse ein.');
         }
-        await sendResetPasswordEmail(email);
+        await sendResetPasswordEmail(identifier.trim());
         setSuccessMessage('Eine E-Mail zum Zurücksetzen deines Passworts wurde versendet.');
       }
     } catch (err: any) {
@@ -118,7 +166,7 @@ export const AuthModal: React.FC = () => {
               <p className="text-xs text-[#52645a]">
                 {mode === 'reset'
                   ? 'Gib deine E-Mail-Adresse ein, um einen Reset-Link zu erhalten'
-                  : 'Synchronisiere deine Lebensplanung auf allen Geräten'}
+                  : 'Plane alleine oder gemeinsam mit Freunden & Teams'}
               </p>
             </div>
           </div>
@@ -159,7 +207,6 @@ export const AuthModal: React.FC = () => {
             </button>
           </div>
 
-          {/* Feedback messages */}
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-start gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -207,7 +254,7 @@ export const AuthModal: React.FC = () => {
               <div className="relative flex items-center justify-center my-2">
                 <div className="border-t border-[#e3ebe5] w-full" />
                 <span className="bg-white px-3 text-[11px] text-[#6b7d72] uppercase font-semibold">
-                  oder mit E-Mail
+                  oder direkt
                 </span>
               </div>
             </>
@@ -216,35 +263,84 @@ export const AuthModal: React.FC = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
-              <div>
-                <label className="block text-xs font-semibold text-[#171c19] mb-1">
-                  Name (optional)
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-[#6b7d72] absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Max Mustermann"
-                    className="w-full pl-9 pr-3 py-2 text-xs border border-[#c4d6cb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#174e36] bg-white text-[#171c19]"
-                  />
+              <>
+                <div>
+                  <label className="block text-xs font-semibold text-[#171c19] mb-1">
+                    Benutzername *
+                  </label>
+                  <div className="relative">
+                    <AtSign className="w-4 h-4 text-[#6b7d72] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                      placeholder="dein_username"
+                      className="w-full pl-9 pr-9 py-2 text-xs border border-[#c4d6cb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#174e36] bg-white text-[#171c19]"
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {usernameStatus === 'checking' && (
+                        <Loader2 className="w-3.5 h-3.5 text-[#6b7d72] animate-spin" />
+                      )}
+                      {usernameStatus === 'available' && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      )}
+                      {(usernameStatus === 'taken' || usernameStatus === 'invalid') && (
+                        <AlertCircle className="w-4 h-4 text-rose-500" />
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[10px] mt-1 text-[#52645a]">
+                    {usernameStatus === 'available' && (
+                      <span className="text-emerald-700 font-semibold">
+                        @{normalizeUsername(username)} ist verfügbar!
+                      </span>
+                    )}
+                    {usernameStatus === 'taken' && (
+                      <span className="text-rose-600 font-semibold">
+                        Dieser Benutzername ist bereits vergeben.
+                      </span>
+                    )}
+                    {usernameStatus === 'invalid' && (
+                      <span className="text-rose-600 font-semibold">
+                        3–20 Zeichen, nur Kleinbuchstaben, Zahlen und _ erlaubt.
+                      </span>
+                    )}
+                    {(usernameStatus === 'idle' || usernameStatus === 'checking') &&
+                      'Damit können dich Freunde finden und zu Projekten einladen.'}
+                  </p>
                 </div>
-              </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#171c19] mb-1">
+                    Anzeigename (optional)
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-[#6b7d72] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="Max Mustermann"
+                      className="w-full pl-9 pr-3 py-2 text-xs border border-[#c4d6cb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#174e36] bg-white text-[#171c19]"
+                    />
+                  </div>
+                </div>
+              </>
             )}
 
             <div>
               <label className="block text-xs font-semibold text-[#171c19] mb-1">
-                E-Mail-Adresse
+                {mode === 'login' ? 'E-Mail oder Benutzername' : 'E-Mail-Adresse *'}
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-[#6b7d72] absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
-                  type="email"
+                  type={mode === 'login' ? 'text' : 'email'}
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@beispiel.de"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder={mode === 'login' ? 'name@beispiel.de oder @username' : 'name@beispiel.de'}
                   className="w-full pl-9 pr-3 py-2 text-xs border border-[#c4d6cb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#174e36] bg-white text-[#171c19]"
                 />
               </div>
@@ -288,18 +384,16 @@ export const AuthModal: React.FC = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (mode === 'register' && (usernameStatus === 'taken' || usernameStatus === 'invalid'))}
               className="w-full py-2.5 px-4 bg-[#174e36] hover:bg-[#12402c] active:scale-[0.98] text-white rounded-xl text-xs font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
             >
-              {loading ? (
-                'Bitte warten...'
-              ) : mode === 'login' ? (
-                'Anmelden'
-              ) : mode === 'register' ? (
-                'Konto erstellen'
-              ) : (
-                'Reset-Link senden'
-              )}
+              {loading
+                ? 'Bitte warten...'
+                : mode === 'login'
+                ? 'Anmelden'
+                : mode === 'register'
+                ? 'Konto erstellen'
+                : 'Reset-Link senden'}
             </button>
           </form>
 

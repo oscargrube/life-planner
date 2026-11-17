@@ -1,19 +1,21 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Menu, Sparkles } from 'lucide-react';
 import { AppProvider } from './context/AppContext';
+import { useUI } from './context/UIContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { CalendarPage } from './pages/CalendarPage';
 import { IdeasPage } from './pages/IdeasPage';
 import { TasksPage } from './pages/TasksPage';
+import { ProjectsPage } from './pages/ProjectsPage';
+import { SocialHubPage } from './pages/SocialHubPage';
 import { ConvertIdeaModal } from './components/modals/ConvertIdeaModal';
 import { EventModal } from './components/modals/EventModal';
+import { EventRequestModal } from './components/modals/EventRequestModal';
 import { TaskModal } from './components/modals/TaskModal';
 import { IdeaModal } from './components/modals/IdeaModal';
 import { AuthModal } from './components/modals/AuthModal';
-
-import { useLocation } from 'react-router-dom';
-import { Menu, Sparkles } from 'lucide-react';
-import { useUI } from './context/UIContext';
+import { UsernameSetupModal } from './components/modals/UsernameSetupModal';
 
 const AppContent: React.FC = () => {
   const { setMobileSidebarOpen } = useUI();
@@ -22,12 +24,16 @@ const AppContent: React.FC = () => {
   const getPageTitle = () => {
     if (location.pathname.startsWith('/ideas')) return 'Ideenbereich';
     if (location.pathname.startsWith('/tasks')) return 'Aufgaben';
+    if (location.pathname.startsWith('/projects')) return 'Projekte';
+    if (location.pathname.startsWith('/social')) return 'Social Hub';
     return 'Kalender';
   };
 
   const isCalendar = location.pathname.startsWith('/calendar');
   const isIdeas = location.pathname.startsWith('/ideas');
-  const hideGlobalTopBar = isCalendar || isIdeas;
+  const isProjects = location.pathname.startsWith('/projects');
+  const isSocial = location.pathname.startsWith('/social');
+  const hideGlobalTopBar = isCalendar || isIdeas || isProjects || isSocial;
 
   return (
     <div className="flex h-[100dvh] w-screen overflow-hidden bg-[#f8faf8] text-[#171c19] antialiased selection:bg-[#174e36] selection:text-white flex-col md:flex-row">
@@ -35,20 +41,20 @@ const AppContent: React.FC = () => {
       {!hideGlobalTopBar && (
         <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-[#e2e8e3] shrink-0 z-20 shadow-xs">
           <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setMobileSidebarOpen(true)}
-            className="p-1.5 -ml-1.5 text-[#52645a] hover:bg-[#f4f7f5] rounded-lg transition-colors"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#174e36] to-[#0f3424] text-white flex items-center justify-center shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 text-[#86e3b5]" />
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="p-1.5 -ml-1.5 text-[#52645a] hover:bg-[#f4f7f5] rounded-lg transition-colors"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#174e36] to-[#0f3424] text-white flex items-center justify-center shadow-xs">
+                <Sparkles className="w-3.5 h-3.5 text-[#86e3b5]" />
+              </div>
+              <h1 className="font-bold text-base text-[#171c19] tracking-tight">
+                {getPageTitle()}
+              </h1>
             </div>
-            <h1 className="font-bold text-base text-[#171c19] tracking-tight">
-              {getPageTitle()}
-            </h1>
-          </div>
           </div>
         </header>
       )}
@@ -61,15 +67,20 @@ const AppContent: React.FC = () => {
         <Routes>
           <Route path="/" element={<Navigate to="/calendar" replace />} />
           <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/ideas" element={<IdeasPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:projectId" element={<ProjectsPage />} />
           <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/ideas" element={<IdeasPage />} />
+          <Route path="/social" element={<SocialHubPage />} />
         </Routes>
       </main>
 
       {/* Global Modals */}
       <AuthModal />
+      <UsernameSetupModal />
       <ConvertIdeaModal />
       <EventModal />
+      <EventRequestModal />
       <TaskModal />
       <IdeaModal />
     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { CheckSquare, GripVertical, X } from 'lucide-react';
 import { Task, Category, CATEGORIES_CONFIG } from '../../types';
+import { useApp } from '../../context/AppContext';
 
 interface TaskSidebarProps {
   unscheduledTasks: Task[];
@@ -17,6 +18,7 @@ export const TaskSidebar: React.FC<TaskSidebarProps> = ({
   handleDragEnd,
   onClose,
 }) => {
+  const { projects } = useApp();
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
   const categories = Object.keys(CATEGORIES_CONFIG) as Category[];
 
@@ -107,6 +109,7 @@ export const TaskSidebar: React.FC<TaskSidebarProps> = ({
           filteredTasks.map((task) => {
             const conf =
               CATEGORIES_CONFIG[task.category] || CATEGORIES_CONFIG['Arbeit'];
+            const proj = task.projectId ? projects.find((p) => p.id === task.projectId) : undefined;
             const isBeingDragged = draggedItem?.id === task.id;
 
             return (
@@ -119,13 +122,24 @@ export const TaskSidebar: React.FC<TaskSidebarProps> = ({
                   isBeingDragged ? 'opacity-40 scale-95 ring-2 ring-[#174e36]' : ''
                 }`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span
-                    className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${conf.badgeClass}`}
-                  >
-                    {task.category}
-                  </span>
-                  <GripVertical className="w-3 h-3 text-[#8e9f94] group-hover:text-[#174e36]" />
+                <div className="flex items-center justify-between mb-1 gap-1">
+                  <div className="flex items-center gap-1 min-w-0 flex-wrap">
+                    <span
+                      className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${conf.badgeClass}`}
+                    >
+                      {task.category}
+                    </span>
+                    {proj && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#fafcfa] border border-[#d8e2db] text-[#171c19] truncate max-w-[110px]">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: proj.color }}
+                        />
+                        <span className="truncate">{proj.title}</span>
+                      </span>
+                    )}
+                  </div>
+                  <GripVertical className="w-3 h-3 text-[#8e9f94] group-hover:text-[#174e36] shrink-0" />
                 </div>
                 <h4 className="text-xs font-semibold text-[#171c19] leading-snug">
                   {task.title}

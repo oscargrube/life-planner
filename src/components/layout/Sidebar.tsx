@@ -3,6 +3,8 @@ import {
   Calendar as CalendarIcon,
   Lightbulb,
   CheckSquare,
+  FolderKanban,
+  Users,
   LogOut,
   LogIn,
   Sparkles,
@@ -11,21 +13,41 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useSocial } from '../../context/SocialContext';
 import { useUI } from '../../context/UIContext';
 import { ViewScreen } from '../../types';
 
 export const Sidebar: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, userProfile, logout } = useAuth();
+  const { pendingRequestsCount } = useSocial();
   const { isMobileSidebarOpen, setMobileSidebarOpen, openAuthModal, openIdeaModal } = useUI();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const navItems: { id: ViewScreen; path: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  const navItems: {
+    id: ViewScreen;
+    path: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    badge?: number;
+  }[] = [
     {
       id: 'calendar',
       path: '/calendar',
       label: 'Kalender',
       icon: CalendarIcon,
+    },
+    {
+      id: 'projects',
+      path: '/projects',
+      label: 'Projekte',
+      icon: FolderKanban,
+    },
+    {
+      id: 'tasks',
+      path: '/tasks',
+      label: 'Aufgaben',
+      icon: CheckSquare,
     },
     {
       id: 'ideas',
@@ -34,10 +56,11 @@ export const Sidebar: React.FC = () => {
       icon: Lightbulb,
     },
     {
-      id: 'tasks',
-      path: '/tasks',
-      label: 'Aufgaben',
-      icon: CheckSquare,
+      id: 'social',
+      path: '/social',
+      label: 'Social Hub',
+      icon: Users,
+      badge: pendingRequestsCount,
     },
   ];
 
@@ -53,8 +76,9 @@ export const Sidebar: React.FC = () => {
 
       <aside
         id="main-sidebar"
-        className={`w-64 bg-white text-[#171c19] flex flex-col shrink-0 border-r border-[#e3ebe5] select-none h-[100dvh] fixed md:sticky top-0 left-0 z-40 transition-transform duration-300 shadow-xl md:shadow-xs md:translate-x-0 ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+        className={`w-64 bg-white text-[#171c19] flex flex-col shrink-0 border-r border-[#e3ebe5] select-none h-[100dvh] fixed md:sticky top-0 left-0 z-40 transition-transform duration-300 shadow-xl md:shadow-xs md:translate-x-0 ${
+          isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
       >
         {/* Brand Header */}
         <div className="p-5 border-b border-[#e3ebe5] flex items-center justify-between">
@@ -66,12 +90,14 @@ export const Sidebar: React.FC = () => {
               <h1 className="font-bold text-base text-[#171c19] tracking-tight leading-tight hidden md:block">
                 Lebensplanung
               </h1>
-              <p className="text-xs text-[#52645a] font-medium hidden md:block">Der Weg zum Glück :) </p>
+              <p className="text-xs text-[#52645a] font-medium hidden md:block">
+                Der Weg zum Glück :)
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Quick Action Bar - Only + Idee as requested */}
+        {/* Quick Action Bar */}
         <div className="p-3.5 border-b border-[#e3ebe5]">
           <button
             id="sidebar-quick-idea-btn"
@@ -83,7 +109,7 @@ export const Sidebar: React.FC = () => {
           </button>
         </div>
 
-        {/* Main Navigation without numbers */}
+        {/* Main Navigation */}
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
           <div>
             <span className="px-3 text-[11px] font-bold uppercase tracking-wider text-[#6b7d72]">
@@ -92,9 +118,10 @@ export const Sidebar: React.FC = () => {
             <nav className="mt-2 space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = item.path === '/'
-                  ? location.pathname === '/'
-                  : location.pathname.startsWith(item.path);
+                const isActive =
+                  item.path === '/'
+                    ? location.pathname === '/'
+                    : location.pathname.startsWith(item.path);
                 return (
                   <button
                     key={item.id}
@@ -103,15 +130,23 @@ export const Sidebar: React.FC = () => {
                       navigate(item.path);
                       setMobileSidebarOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${isActive
-                      ? 'bg-[#edf5f0] text-[#143d2b] shadow-xs border border-[#cfe0d5] font-semibold'
-                      : 'text-[#38463e] hover:text-[#171c19] hover:bg-[#f3f7f4]'
-                      }`}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-[#edf5f0] text-[#143d2b] shadow-xs border border-[#cfe0d5] font-semibold'
+                        : 'text-[#38463e] hover:text-[#171c19] hover:bg-[#f3f7f4]'
+                    }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Icon className={`w-4 h-4 ${isActive ? 'text-[#174e36]' : 'text-[#6b7d72]'}`} />
+                      <Icon
+                        className={`w-4 h-4 ${isActive ? 'text-[#174e36]' : 'text-[#6b7d72]'}`}
+                      />
                       <span>{item.label}</span>
                     </div>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="px-1.5 py-0.5 min-w-[20px] text-center rounded-full bg-rose-500 text-white text-[10px] font-bold">
+                        {item.badge}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -132,17 +167,21 @@ export const Sidebar: React.FC = () => {
                       className="w-7 h-7 rounded-full object-cover border border-[#c4d6cb] shadow-xs"
                     />
                   ) : (
-                    <div className="w-7 h-7 rounded-full bg-[#174e36] text-white flex items-center justify-center text-xs font-semibold">
-                      {user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
+                    <div className="w-7 h-7 rounded-full bg-[#174e36] text-white flex items-center justify-center text-xs font-semibold shrink-0">
+                      {(userProfile?.displayName || user.displayName || 'U')
+                        .charAt(0)
+                        .toUpperCase()}
                     </div>
                   )}
                   <div className="truncate">
                     <p className="text-xs font-semibold text-[#171c19] truncate">
-                      {user.displayName || user.email?.split('@')[0]}
+                      {userProfile?.displayName || user.displayName || user.email?.split('@')[0]}
                     </p>
-                    <div className="flex items-center gap-1 text-[10px] text-[#174e36] font-medium">
-                      <CloudCheck className="w-3 h-3 text-[#174e36]" />
-                      <span>Firestore Sync aktiv</span>
+                    <div className="flex items-center gap-1 text-[10px] text-[#174e36] font-medium truncate">
+                      <CloudCheck className="w-3 h-3 text-[#174e36] shrink-0" />
+                      <span className="truncate">
+                        {userProfile?.username ? `@${userProfile.username}` : 'Firestore Sync aktiv'}
+                      </span>
                     </div>
                   </div>
                 </div>

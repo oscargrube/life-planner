@@ -52,6 +52,7 @@ export const ConvertIdeaModal: React.FC = () => {
         category,
         recurrence,
         dueDate: dueDate || undefined,
+        projectId: selectedIdeaForConversion.projectId,
         sourceIdeaId: selectedIdeaForConversion.id,
         sourceIdeaTitle: selectedIdeaForConversion.title,
       });
@@ -64,6 +65,7 @@ export const ConvertIdeaModal: React.FC = () => {
         durationMinutes,
         category,
         recurrence,
+        projectId: selectedIdeaForConversion.projectId,
         sourceIdeaId: selectedIdeaForConversion.id,
       });
     }

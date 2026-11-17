@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
-import { ChevronLeft, ChevronRight, Plus, CheckSquare, Calendar as CalendarIcon, Menu } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, CheckSquare, Calendar as CalendarIcon, Menu, CalendarPlus } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
+import { useApp } from '../../context/AppContext';
 import { formatDateKey, parseDateKey } from '../../utils/dateUtils';
 
 export type CalendarViewMode = 'day' | 'week' | 'month';
@@ -33,7 +34,8 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   todayStr,
 }) => {
   const dateInputRef = useRef<HTMLInputElement>(null);
-  const { setMobileSidebarOpen } = useUI();
+  const { setMobileSidebarOpen, openEventRequestModal } = useUI();
+  const { user, projects, selectedProjectFilter, setSelectedProjectFilter } = useApp();
 
   const handleDateSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.value) {
@@ -131,6 +133,38 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
       <div className="flex items-center justify-end gap-2">
         {/* Desktop & iPad Buttons */}
         <div className="hidden md:flex items-center gap-2">
+          {projects.length > 0 && (
+            <select
+              value={selectedProjectFilter}
+              onChange={(e) => setSelectedProjectFilter(e.target.value)}
+              className="px-2.5 py-2 bg-white border border-[#d8e2db] rounded-xl text-xs font-semibold text-[#52645a] outline-none cursor-pointer max-w-[140px]"
+              title="Kalender nach Projekt filtern"
+            >
+              <option value="all">Alle Termine</option>
+              <option value="private">Nur Privat</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {user && (
+            <button
+              type="button"
+              onClick={() => {
+                const defaultDate = viewMode === 'day' ? formatDateKey(currentDate) : todayStr;
+                openEventRequestModal({ date: defaultDate, time: '15:00' });
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#edf5f0] hover:bg-[#dfeee5] text-[#174e36] border border-[#cfe0d5] rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
+              title="Gemeinsamen Termin mit Freunden/Team anfragen"
+            >
+              <CalendarPlus className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Anfragen</span>
+            </button>
+          )}
+
           <button
             id="btn-new-calendar-event"
             onClick={() => {
