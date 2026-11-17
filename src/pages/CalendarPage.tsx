@@ -33,6 +33,7 @@ export const CalendarPage: React.FC = () => {
     tasks,
     selectedCategory,
     openEventModal,
+    updateEvent,
     moveEventDate,
     convertTaskToEvent,
   } = useApp();
@@ -45,11 +46,10 @@ export const CalendarPage: React.FC = () => {
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768 && viewMode !== 'day') {
+      if (window.innerWidth < 768 && viewMode === 'week') {
         setViewMode('day');
       }
     };
-    // Force day on initial load
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -68,6 +68,19 @@ export const CalendarPage: React.FC = () => {
   const [dragOverHour, setDragOverHour] = useState<number | null>(null);
   const [dragOverMinute, setDragOverMinute] = useState<number>(0);
 
+  // Event downward resize state
+  const [resizingEvent, setResizingEvent] = useState<{
+    id: string;
+    initialY: number;
+    initialDuration: number;
+    currentDuration: number;
+    startMin: number;
+  } | null>(null);
+  const justResizedRef = useRef(false);
+
+  // Mobile horizontal swipe state for changing days
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const dayTimelineScrollRef = useRef<HTMLDivElement>(null);
   const monthScrollRef = useRef<HTMLDivElement>(null);
@@ -79,6 +92,96 @@ export const CalendarPage: React.FC = () => {
     }, 30000);
     return () => clearInterval(timer);
   }, []);
+
+  // Handle downward event resizing via pointer events (mouse & touch)
+  useEffect(() => {
+    if (!resizingEvent) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const deltaY = e.clientY - resizingEvent.initialY;
+      const deltaMinutes = Math.round(((deltaY / HOUR_HEIGHT) * 60) / 15) * 15;
+      const maxDuration = Math.max(15, 24 * 60 - resizingEvent.startMin);
+      const nextDuration = Math.max(
+        15,
+        Math.min(maxDuration, resizingEvent.initialDuration + deltaMinutes)
+      );
+
+      setResizingEvent((prev) =>
+        prev ? { ...prev, currentDuration: nextDuration } : null
+      );
+    };
+
+    const handlePointerUp = async () => {
+      const finalDuration = resizingEvent.currentDuration;
+      const eventId = resizingEvent.id;
+      const changed = finalDuration !== resizingEvent.initialDuration;
+
+      justResizedRef.current = true;
+      setTimeout(() => {
+        justResizedRef.current = false;
+      }, 150);
+
+      setResizingEvent(null);
+
+      if (changed) {
+        await updateEvent(eventId, { durationMinutes: finalDuration });
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, [resizingEvent, updateEvent]);
+
+  const handleResizeStart = (e: React.PointerEvent, evt: CalendarEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const [h, m] = (evt.time || '00:00').split(':').map(Number);
+    const startMin = (h || 0) * 60 + (m || 0);
+    const initialDuration = evt.durationMinutes || 60;
+    setResizingEvent({
+      id: evt.id,
+      initialY: e.clientY,
+      initialDuration,
+      currentDuration: initialDuration,
+      startMin,
+    });
+  };
+
+  const formatEndTime = (startTime: string, durationMinutes: number): string => {
+    const [h, m] = (startTime || '00:00').split(':').map(Number);
+    const total = Math.min(24 * 60, (h || 0) * 60 + (m || 0) + durationMinutes);
+    const endH = Math.floor(total / 60);
+    const endM = total % 60;
+    return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (resizingEvent || e.touches.length !== 1) return;
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current || resizingEvent || e.changedTouches.length !== 1) {
+      touchStartRef.current = null;
+      return;
+    }
+    const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      navigateDate(dx < 0 ? 'next' : 'prev');
+    }
+  };
 
   // Filter events by selectedCategory
   const filteredEvents = useMemo(() => {
@@ -426,9 +529,13 @@ export const CalendarPage: React.FC = () => {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* ===================== TAG (DAY) VIEW ===================== */}
           {viewMode === 'day' && (
-            <div className="bg-white flex-1 flex flex-col overflow-hidden">
+            <div
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="bg-white flex-1 flex flex-col overflow-hidden"
+            >
               {/* Day Header */}
-              <div className="px-6 py-3 border-b border-[#e2e8e3] bg-[#fafcfa] flex items-center justify-between shrink-0">
+              <div className="px-4 sm:px-6 py-3 border-b border-[#e2e8e3] bg-[#fafcfa] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#174e36] text-white font-extrabold text-base shadow-xs">
                     {currentDate.getDate()}
@@ -447,10 +554,10 @@ export const CalendarPage: React.FC = () => {
 
                 <button
                   onClick={() => openEventModal(undefined, dayViewDateString, '10:00')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#174e36] bg-[#edf5f0] hover:bg-[#dbeee1] border border-[#cfe0d5] rounded-xl transition-all cursor-pointer shadow-xs"
+                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#174e36] bg-[#edf5f0] hover:bg-[#dbeee1] border border-[#cfe0d5] rounded-xl transition-all cursor-pointer shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Termin eintragen</span>
+                  <span>Termin</span>
                 </button>
               </div>
 
@@ -594,30 +701,40 @@ export const CalendarPage: React.FC = () => {
                       ({ event: evt, top, height, leftPercent, widthPercent }) => {
                         const conf =
                           CATEGORIES_CONFIG[evt.category] || CATEGORIES_CONFIG['Arbeit'];
+                        const isResizing = resizingEvent?.id === evt.id;
+                        const effectiveDuration = isResizing
+                          ? resizingEvent.currentDuration
+                          : evt.durationMinutes || 60;
+                        const effectiveHeight = isResizing
+                          ? Math.max(26, (effectiveDuration / 60) * HOUR_HEIGHT - 2)
+                          : height;
 
                         return (
                           <div
                             key={evt.id}
-                            draggable
+                            draggable={!resizingEvent}
                             onDragStart={(e) => handleDragStartEvent(e, evt)}
                             onDragEnd={handleDragEnd}
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (justResizedRef.current) return;
                               openEventModal(evt);
                             }}
                             style={{
                               top: `${top}px`,
-                              height: `${height}px`,
+                              height: `${effectiveHeight}px`,
                               left: `${leftPercent}%`,
                               width: `calc(${widthPercent}% - 6px)`,
                             }}
-                            className={`absolute z-10 m-1 p-2 rounded-xl border shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all hover:scale-[1.005] overflow-hidden flex flex-col justify-between ${conf.bgLight}`}
-                            title="Klicken zum Bearbeiten, ziehen zum Verschieben"
+                            className={`group/evt absolute z-10 m-1 p-2 pb-3 rounded-xl border shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing overflow-hidden flex flex-col justify-between ${
+                              isResizing ? 'z-30 ring-2 ring-[#174e36] shadow-lg' : 'transition-all hover:scale-[1.005]'
+                            } ${conf.bgLight}`}
+                            title="Klicken zum Bearbeiten, ziehen zum Verschieben, unten ziehen zum Verlängern"
                           >
                             <div className="min-w-0">
                               <div className="flex items-center justify-between gap-1">
                                 <span className="text-xs font-extrabold text-[#171c19] shrink-0">
-                                  {evt.time} ({evt.durationMinutes || 60} Min)
+                                  {evt.time} – {formatEndTime(evt.time, effectiveDuration)} ({effectiveDuration} Min)
                                 </span>
                                 {evt.recurrence !== 'none' && (
                                   <Repeat className={`w-3 h-3 opacity-75 shrink-0 ${conf.textDark}`} />
@@ -628,11 +745,21 @@ export const CalendarPage: React.FC = () => {
                               </h4>
                             </div>
 
-                            {height >= 48 && evt.description && (
+                            {effectiveHeight >= 48 && evt.description && (
                               <p className={`text-[11px] font-medium opacity-85 truncate mt-0.5 ${conf.textDark}`}>
                                 {evt.description}
                               </p>
                             )}
+
+                            {/* Bottom Resize Handle */}
+                            <div
+                              onPointerDown={(e) => handleResizeStart(e, evt)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center group/resize touch-none"
+                              title="Nach unten ziehen, um Dauer zu ändern"
+                            >
+                              <div className="w-10 h-1 rounded-full bg-current opacity-0 group-hover/evt:opacity-35 group-hover/resize:opacity-75 transition-opacity" />
+                            </div>
                           </div>
                         );
                       }
@@ -845,30 +972,42 @@ export const CalendarPage: React.FC = () => {
                           ({ event: evt, top, height, leftPercent, widthPercent }) => {
                             const conf =
                               CATEGORIES_CONFIG[evt.category] || CATEGORIES_CONFIG['Arbeit'];
+                            const isResizing = resizingEvent?.id === evt.id;
+                            const effectiveDuration = isResizing
+                              ? resizingEvent.currentDuration
+                              : evt.durationMinutes || 60;
+                            const effectiveHeight = isResizing
+                              ? Math.max(26, (effectiveDuration / 60) * HOUR_HEIGHT - 2)
+                              : height;
 
                             return (
                               <div
                                 key={evt.id}
-                                draggable
+                                draggable={!resizingEvent}
                                 onDragStart={(e) => handleDragStartEvent(e, evt)}
                                 onDragEnd={handleDragEnd}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  if (justResizedRef.current) return;
                                   openEventModal(evt);
                                 }}
                                 style={{
                                   top: `${top}px`,
-                                  height: `${height}px`,
+                                  height: `${effectiveHeight}px`,
                                   left: `${leftPercent}%`,
                                   width: `calc(${widthPercent}% - 4px)`,
                                 }}
-                                className={`absolute z-10 m-0.5 p-1.5 rounded-xl border shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all hover:scale-[1.01] overflow-hidden flex flex-col justify-between ${conf.bgLight}`}
-                                title="Klicken zum Bearbeiten, ziehen zum Verschieben"
+                                className={`group/evt absolute z-10 m-0.5 p-1.5 pb-2.5 rounded-xl border shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing overflow-hidden flex flex-col justify-between ${
+                                  isResizing ? 'z-30 ring-2 ring-[#174e36] shadow-lg' : 'transition-all hover:scale-[1.01]'
+                                } ${conf.bgLight}`}
+                                title="Klicken zum Bearbeiten, ziehen zum Verschieben, unten ziehen zum Verlängern"
                               >
                                 <div className="min-w-0">
                                   <div className="flex items-center justify-between gap-1">
                                     <span className="text-[11px] font-extrabold text-[#171c19] shrink-0">
-                                      {evt.time}
+                                      {isResizing
+                                        ? `${evt.time} – ${formatEndTime(evt.time, effectiveDuration)}`
+                                        : evt.time}
                                     </span>
                                     {evt.recurrence !== 'none' && (
                                       <Repeat className={`w-2.5 h-2.5 opacity-75 shrink-0 ${conf.textDark}`} />
@@ -879,11 +1018,21 @@ export const CalendarPage: React.FC = () => {
                                   </h4>
                                 </div>
 
-                                {height >= 48 && evt.description && (
+                                {effectiveHeight >= 48 && evt.description && (
                                   <p className={`text-[10px] font-medium opacity-85 truncate mt-0.5 ${conf.textDark}`}>
                                     {evt.description}
                                   </p>
                                 )}
+
+                                {/* Bottom Resize Handle */}
+                                <div
+                                  onPointerDown={(e) => handleResizeStart(e, evt)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize flex items-center justify-center group/resize touch-none"
+                                  title="Nach unten ziehen, um Dauer zu ändern"
+                                >
+                                  <div className="w-8 h-1 rounded-full bg-current opacity-0 group-hover/evt:opacity-35 group-hover/resize:opacity-75 transition-opacity" />
+                                </div>
                               </div>
                             );
                           }
@@ -948,25 +1097,38 @@ export const CalendarPage: React.FC = () => {
                           );
                           const isOver = dragOverDay === dayItem.dateString;
                           const isFirstOfMonth = dayItem.isCurrentMonth && dayItem.dayNumber === 1;
+                          const isSelectedMobileDay = dayItem.dateString === dayViewDateString;
 
                           return (
                             <div
                               key={idx}
-                              onClick={() => openEventModal(undefined, dayItem.dateString, '10:00')}
+                              onClick={() => {
+                                if (window.innerWidth < 768) {
+                                  setCurrentDate(parseDateKey(dayItem.dateString));
+                                } else {
+                                  openEventModal(undefined, dayItem.dateString, '10:00');
+                                }
+                              }}
                               onDragOver={(e) => handleDragOver(e, dayItem.dateString)}
                               onDragLeave={handleDragLeave}
                               onDrop={(e) => handleDrop(e, dayItem.dateString)}
-                              className={`min-h-[96px] sm:min-h-[112px] p-1.5 sm:p-2 flex flex-col transition-all cursor-pointer group ${
+                              className={`min-h-[56px] md:min-h-[108px] p-1 md:p-2 flex flex-col transition-all cursor-pointer group ${
                                 !dayItem.isCurrentMonth
                                   ? 'bg-[#f8faf9] text-[#94a3b8]/65'
                                   : 'bg-white hover:bg-[#f8faf8]'
-                              } ${dayItem.isToday ? 'ring-1 ring-inset ring-[#174e36] bg-[#edf5f0]/50' : ''} ${
+                              } ${
+                                dayItem.isToday
+                                  ? 'ring-1 ring-inset ring-[#174e36] bg-[#edf5f0]/50'
+                                  : isSelectedMobileDay
+                                  ? 'md:ring-0 ring-2 ring-inset ring-[#174e36]/70 bg-[#edf5f0]/30 md:bg-white'
+                                  : ''
+                              } ${
                                 isOver ? 'bg-[#edf5f0] ring-2 ring-[#174e36] ring-inset' : ''
                               }`}
                               title={`Klicken, um Termin für ${dayItem.dateString} einzutragen`}
                             >
                               {/* Day Number Header */}
-                              <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center justify-center md:justify-between mb-0.5 md:mb-1">
                                 <span
                                   className={`text-xs font-bold h-6 px-1.5 flex items-center justify-center rounded-xl transition-colors ${
                                     dayItem.isToday
@@ -983,13 +1145,30 @@ export const CalendarPage: React.FC = () => {
                                     : dayItem.dayNumber}
                                 </span>
 
-                                <span className="w-5 h-5 rounded-lg flex items-center justify-center text-[#174e36] opacity-0 group-hover:opacity-100 hover:bg-[#edf5f0] transition-opacity">
+                                <span className="hidden md:flex w-5 h-5 rounded-lg items-center justify-center text-[#174e36] opacity-0 group-hover:opacity-100 hover:bg-[#edf5f0] transition-opacity">
                                   <Plus className="w-3.5 h-3.5" />
                                 </span>
                               </div>
 
-                              {/* Event Chips */}
-                              <div className="space-y-1 overflow-y-auto no-scrollbar flex-1 max-h-[85px]">
+                              {/* Mobile Event Dots (Classic Mobile Calendar UX) */}
+                              {dayEvents.length > 0 && (
+                                <div className="flex md:hidden items-center justify-center gap-0.5 flex-wrap mt-0.5 px-0.5">
+                                  {dayEvents.slice(0, 4).map((evt) => {
+                                    const conf =
+                                      CATEGORIES_CONFIG[evt.category] || CATEGORIES_CONFIG['Arbeit'];
+                                    return (
+                                      <span
+                                        key={evt.id}
+                                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                                        style={{ backgroundColor: conf.color }}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* Desktop & iPad Event Chips */}
+                              <div className="hidden md:block space-y-1 overflow-y-auto no-scrollbar flex-1 max-h-[85px]">
                                 {dayEvents.map((evt) => {
                                   const conf =
                                     CATEGORIES_CONFIG[evt.category] || CATEGORIES_CONFIG['Arbeit'];
@@ -1027,6 +1206,61 @@ export const CalendarPage: React.FC = () => {
                   );
                 })}
               </div>
+
+              {/* Mobile Selected Day Agenda Panel (Classic Mobile Month View) */}
+              <div className="md:hidden border-t border-[#e2e8e3] bg-[#fafcfa] shrink-0 max-h-[36%] flex flex-col">
+                <div className="px-4 py-2 border-b border-[#e8eee9] flex items-center justify-between bg-white">
+                  <span className="text-xs font-bold text-[#171c19]">
+                    {currentDate.toLocaleDateString('de-DE', {
+                      weekday: 'long',
+                      day: '2-digit',
+                      month: '2-digit',
+                    })}
+                  </span>
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#edf5f0] text-[#174e36]">
+                    {dayEventLayouts.length} {dayEventLayouts.length === 1 ? 'Termin' : 'Termine'}
+                  </span>
+                </div>
+                <div className="flex-1 overflow-y-auto no-scrollbar p-2.5 space-y-1.5 pb-16">
+                  {dayEventLayouts.length === 0 ? (
+                    <div className="text-center py-4 text-xs text-[#6b7d72]">
+                      Keine Termine an diesem Tag.
+                    </div>
+                  ) : (
+                    dayEventLayouts.map(({ event: evt }) => {
+                      const conf =
+                        CATEGORIES_CONFIG[evt.category] || CATEGORIES_CONFIG['Arbeit'];
+                      return (
+                        <div
+                          key={evt.id}
+                          onClick={() => openEventModal(evt)}
+                          className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 cursor-pointer active:scale-[0.99] transition-transform ${conf.bgLight}`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: conf.color }}
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-extrabold text-[#171c19]">
+                                  {evt.time} – {formatEndTime(evt.time, evt.durationMinutes || 60)}
+                                </span>
+                              </div>
+                              <h4 className={`text-xs font-bold truncate ${conf.textDark}`}>
+                                {evt.title}
+                              </h4>
+                            </div>
+                          </div>
+                          {evt.recurrence !== 'none' && (
+                            <Repeat className={`w-3 h-3 opacity-70 shrink-0 ${conf.textDark}`} />
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1042,6 +1276,21 @@ export const CalendarPage: React.FC = () => {
           />
         )}
       </div>
+
+      {/* Mobile Floating Action Button (+ Termin) */}
+      <button
+        type="button"
+        onClick={() => {
+          const defaultDate =
+            viewMode === 'day' || viewMode === 'month' ? dayViewDateString : todayStr;
+          openEventModal(undefined, defaultDate, '10:00');
+        }}
+        className="md:hidden fixed bottom-5 right-5 z-30 w-14 h-14 rounded-full bg-[#174e36] hover:bg-[#12402c] text-white shadow-lg shadow-[#174e36]/30 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+        aria-label="Neuen Termin eintragen"
+        title="Neuen Termin eintragen"
+      >
+        <Plus className="w-6 h-6 stroke-[2.5]" />
+      </button>
     </div>
   );
 };

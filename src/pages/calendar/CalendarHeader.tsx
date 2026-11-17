@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { ChevronLeft, ChevronRight, Plus, CheckSquare, Calendar as CalendarIcon, Menu } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
-import { formatDateKey, parseDateKey, isSameDay } from '../../utils/dateUtils';
+import { formatDateKey, parseDateKey } from '../../utils/dateUtils';
 
 export type CalendarViewMode = 'day' | 'week' | 'month';
 
@@ -42,29 +42,32 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   };
 
   return (
-    <header className="px-4 sm:px-6 py-2.5 bg-white border-b border-[#e2e8e3] flex md:grid md:grid-cols-[1fr_auto_1fr] items-center justify-between gap-3 shrink-0 shadow-xs">
-      {/* Left: Navigation controls (Always visible, left aligned) */}
-      <div className="flex items-center gap-1.5 shrink-0">
+    <header className="px-3 sm:px-6 py-2.5 md:py-4 bg-white border-b border-[#e2e8e3] flex md:grid md:grid-cols-[1fr_auto_1fr] items-center justify-between gap-2 sm:gap-3 shrink-0 shadow-xs">
+      {/* Left: Clickable Kalender title (jumps to today) + Prev/Next */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
         <button
           onClick={() => setMobileSidebarOpen(true)}
-          className="md:hidden p-1.5 -ml-1.5 mr-0.5 text-[#52645a] hover:bg-[#f4f7f5] rounded-lg transition-colors"
+          className="md:hidden p-1.5 -ml-1 text-[#52645a] hover:bg-[#f4f7f5] rounded-lg transition-colors cursor-pointer"
+          aria-label="Menü öffnen"
         >
-          <Menu className="w-6 h-6" />
+          <Menu className="w-5 h-5" />
         </button>
 
         <button
+          type="button"
           onClick={() => setCurrentDate(new Date())}
-          className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-xs active:scale-95 ${
-            isSameDay(currentDate, new Date())
-              ? 'bg-[#edf5f0] text-[#174e36] border-[#cfe0d5] font-bold'
-              : 'bg-white text-[#52645a] border-[#d8e2db] hover:bg-[#f4f7f5] hover:text-[#171c19]'
-          }`}
+          className="flex items-center gap-2 group cursor-pointer rounded-xl py-1 pr-2 -ml-1 pl-1 hover:bg-[#f4f7f5] transition-colors active:scale-[0.98]"
           title="Zum heutigen Tag springen"
         >
-          Heute
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#edf5f0] border border-[#cfe0d5] text-[#174e36] flex items-center justify-center shrink-0 shadow-xs group-hover:bg-[#e1efe6] transition-colors">
+            <CalendarIcon className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#174e36]" />
+          </div>
+          <span className="text-sm sm:text-lg font-bold text-[#171c19] tracking-tight group-hover:text-[#174e36] transition-colors">
+            Kalender
+          </span>
         </button>
 
-        <div className="flex items-center bg-[#f4f7f5] border border-[#d8e2db] rounded-xl p-1 gap-0.5 shadow-xs">
+        <div className="hidden sm:flex items-center bg-[#f4f7f5] border border-[#d8e2db] rounded-xl p-1 gap-0.5 shadow-xs">
           <button
             onClick={() => navigateDate('prev')}
             className="p-1.5 hover:bg-white rounded-lg text-[#52645a] hover:text-[#171c19] transition-all cursor-pointer hover:shadow-xs active:scale-95"
@@ -85,13 +88,13 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         </div>
       </div>
 
-      {/* Center: View Mode Switcher (Hidden on Mobile) */}
-      <div className="hidden md:flex items-center justify-center">
+      {/* Center: View Mode Switcher (Tag/Monat on mobile; Tag/Woche/Monat on iPad/Desktop) */}
+      <div className="flex items-center justify-center">
         <div className="flex items-center bg-[#f4f7f5] border border-[#d8e2db] rounded-xl p-1 shadow-xs">
           <button
             id="calendar-view-mode-day"
             onClick={() => setViewMode('day')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               viewMode === 'day'
                 ? 'bg-[#174e36] text-white shadow-xs font-semibold'
                 : 'text-[#4c5c53] hover:text-[#171c19]'
@@ -102,7 +105,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           <button
             id="calendar-view-mode-week"
             onClick={() => setViewMode('week')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`hidden md:inline-flex px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               viewMode === 'week'
                 ? 'bg-[#174e36] text-white shadow-xs font-semibold'
                 : 'text-[#4c5c53] hover:text-[#171c19]'
@@ -113,7 +116,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           <button
             id="calendar-view-mode-month"
             onClick={() => setViewMode('month')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               viewMode === 'month'
                 ? 'bg-[#174e36] text-white shadow-xs font-semibold'
                 : 'text-[#4c5c53] hover:text-[#171c19]'
@@ -124,9 +127,9 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         </div>
       </div>
 
-      {/* Right side: New Event + Toggle Tasks (Hidden on mobile) + Mobile Date Picker */}
+      {/* Right side: New Event + Toggle Tasks (Desktop/iPad) + Mobile Date Picker */}
       <div className="flex items-center justify-end gap-2">
-        {/* Desktop Buttons */}
+        {/* Desktop & iPad Buttons */}
         <div className="hidden md:flex items-center gap-2">
           <button
             id="btn-new-calendar-event"
@@ -138,7 +141,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
             title="Neuen Kalendereintrag eintragen"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Termin eintragen</span>
+            <span>Termin</span>
           </button>
 
           <button
