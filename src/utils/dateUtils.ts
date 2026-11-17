@@ -89,9 +89,14 @@ export function getWeekDays(referenceDate: Date, todayDateKey: string = getToday
 }
 
 /**
- * Generates the 42 cells (6 weeks grid) for a full month calendar view.
+ * Generates the cells for a month calendar view (either fixed 42 cells or exact weeks for that month).
  */
-export function getMonthCalendarDays(year: number, month: number, todayDateKey: string = getTodayDateKey()): MonthDayInfo[] {
+export function getMonthCalendarDays(
+  year: number,
+  month: number,
+  todayDateKey: string = getTodayDateKey(),
+  exactWeeks: boolean = false
+): MonthDayInfo[] {
   const firstDayOfMonth = new Date(year, month, 1);
   const lastDayOfMonth = new Date(year, month + 1, 0);
 
@@ -127,8 +132,8 @@ export function getMonthCalendarDays(year: number, month: number, todayDateKey: 
     });
   }
 
-  // Next month leading days (fill up to 42 cells total for uniform grid)
-  const remainingDays = 42 - days.length;
+  // Next month leading days
+  const remainingDays = exactWeeks ? (7 - (days.length % 7)) % 7 : 42 - days.length;
   for (let d = 1; d <= remainingDays; d++) {
     const nextDate = new Date(year, month + 1, d);
     const dateString = formatDateKey(nextDate);

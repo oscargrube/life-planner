@@ -70,6 +70,7 @@ export const CalendarPage: React.FC = () => {
 
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const dayTimelineScrollRef = useRef<HTMLDivElement>(null);
+  const monthScrollRef = useRef<HTMLDivElement>(null);
 
   // Update current time periodically
   useEffect(() => {
@@ -135,13 +136,52 @@ export const CalendarPage: React.FC = () => {
     return getWeekDays(currentDate, todayStr);
   }, [currentDate, todayStr]);
 
-  // Month view calculations
+  // Month view calculations (continuous scrollable months: 12 months back to 12 months forward)
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  const calendarDays = useMemo(() => {
-    return getMonthCalendarDays(year, month, todayStr);
+  const scrollableMonths = useMemo(() => {
+    const todayDate = new Date();
+    const minDate = new Date(
+      Math.min(
+        new Date(todayDate.getFullYear(), todayDate.getMonth() - 12, 1).getTime(),
+        new Date(year, month - 3, 1).getTime()
+      )
+    );
+    const maxDate = new Date(
+      Math.max(
+        new Date(todayDate.getFullYear(), todayDate.getMonth() + 12, 1).getTime(),
+        new Date(year, month + 6, 1).getTime()
+      )
+    );
+
+    const list: { year: number; month: number; key: string; days: ReturnType<typeof getMonthCalendarDays> }[] = [];
+    const cursor = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    while (cursor <= maxDate) {
+      const y = cursor.getFullYear();
+      const m = cursor.getMonth();
+      list.push({
+        year: y,
+        month: m,
+        key: `${y}-${m}`,
+        days: getMonthCalendarDays(y, m, todayStr, true),
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return list;
   }, [year, month, todayStr]);
+
+  // Scroll target month into view when switching to month view or navigating months
+  useEffect(() => {
+    if (viewMode === 'month' && monthScrollRef.current) {
+      const targetEl = monthScrollRef.current.querySelector(
+        `[data-month-key="${year}-${month}"]`
+      ) as HTMLElement | null;
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'auto', block: 'start' });
+      }
+    }
+  }, [viewMode, year, month]);
 
   // Overlapping event layout algorithm for week and day views
   const getEventLayout = (dayEvents: CalendarEvent[]) => {
@@ -383,10 +423,10 @@ export const CalendarPage: React.FC = () => {
       {/* Main Calendar Body */}
       <div className="flex-1 flex overflow-hidden">
         {/* Calendar Area */}
-        <div className="flex-1 flex flex-col overflow-hidden p-3 sm:p-4">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* ===================== TAG (DAY) VIEW ===================== */}
           {viewMode === 'day' && (
-            <div className="bg-white rounded-2xl border border-[#e2e8e3] shadow-xs flex-1 flex flex-col overflow-hidden">
+            <div className="bg-white flex-1 flex flex-col overflow-hidden">
               {/* Day Header */}
               <div className="px-6 py-3 border-b border-[#e2e8e3] bg-[#fafcfa] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
@@ -605,7 +645,7 @@ export const CalendarPage: React.FC = () => {
 
           {/* ===================== WOCHE (WEEK) VIEW ===================== */}
           {viewMode === 'week' && (
-            <div className="bg-white rounded-2xl border border-[#e2e8e3] shadow-xs flex-1 flex flex-col overflow-hidden">
+            <div className="bg-white flex-1 flex flex-col overflow-hidden">
               {/* Sticky Top Header with 7 Week Days */}
               <div className="grid grid-cols-[72px_repeat(7,1fr)] border-b border-[#e2e8e3] bg-[#fafcfa] shrink-0 divide-x divide-[#e2e8e3]">
                 {/* Top-left corner */}
@@ -858,9 +898,9 @@ export const CalendarPage: React.FC = () => {
 
           {/* ===================== MONAT (MONTH) VIEW ===================== */}
           {viewMode === 'month' && (
-            <div className="bg-white rounded-2xl border border-[#e2e8e3] shadow-xs flex-1 flex flex-col overflow-hidden min-h-[620px]">
+            <div className="bg-white flex-1 flex flex-col overflow-hidden">
               {/* Day of Week Headers */}
-              <div className="grid grid-cols-7 border-b border-[#e2e8e3] bg-[#fafcfa] text-center py-3 text-xs font-bold text-[#475569] tracking-wider uppercase divide-x divide-[#e2e8e3]">
+              <div className="grid grid-cols-7 border-b border-[#e2e8e3] bg-[#fafcfa] text-center py-2.5 text-xs font-bold text-[#475569] tracking-wider uppercase divide-x divide-[#e2e8e3] shrink-0">
                 {weekdayLabels.map((lbl, idx) => (
                   <div
                     key={idx}
@@ -871,79 +911,119 @@ export const CalendarPage: React.FC = () => {
                 ))}
               </div>
 
-              {/* Month Grid Cells */}
-              <div className="grid grid-cols-7 flex-1 divide-x divide-y divide-[#e8eee9] overflow-y-auto no-scrollbar">
-                {calendarDays.map((dayItem, idx) => {
-                  const dayEvents = filteredEvents.filter((e) =>
-                    isEventOnDate(e.date, e.recurrence, dayItem.dateString)
-                  );
-                  const isOver = dragOverDay === dayItem.dateString;
+              {/* Continuous Scrollable Months */}
+              <div
+                ref={monthScrollRef}
+                className="flex-1 overflow-y-auto no-scrollbar"
+              >
+                {scrollableMonths.map((mObj) => {
+                  const isCurrentRealMonth =
+                    mObj.year === new Date().getFullYear() &&
+                    mObj.month === new Date().getMonth();
+                  const shortMonthName = monthNames[mObj.month].slice(0, 3);
 
                   return (
-                    <div
-                      key={idx}
-                      onClick={() => openEventModal(undefined, dayItem.dateString, '10:00')}
-                      onDragOver={(e) => handleDragOver(e, dayItem.dateString)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleDrop(e, dayItem.dateString)}
-                      className={`min-h-[105px] p-2 flex flex-col transition-all cursor-pointer group ${
-                        !dayItem.isCurrentMonth
-                          ? 'bg-[#fafbfa] text-[#94a3b8]'
-                          : 'bg-white hover:bg-[#f8faf8]'
-                      } ${dayItem.isToday ? 'ring-1 ring-inset ring-[#174e36] bg-[#edf5f0]/50' : ''} ${
-                        isOver ? 'bg-[#edf5f0] ring-2 ring-[#174e36] ring-inset' : ''
-                      }`}
-                      title={`Klicken, um Termin für ${dayItem.dateString} einzutragen`}
-                    >
-                      {/* Day Number Header */}
-                      <div className="flex items-center justify-between mb-1">
-                        <span
-                          className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-xl transition-colors ${
-                            dayItem.isToday
-                              ? 'bg-[#174e36] text-white shadow-xs'
-                              : 'text-[#171c19] group-hover:text-[#174e36]'
+                    <section key={mObj.key} data-month-key={mObj.key}>
+                      {/* Sticky Month Divider Header */}
+                      <div className="sticky top-0 z-10 px-4 py-2 bg-[#f4f7f5]/95 backdrop-blur-xs border-b border-t border-[#e2e8e3] flex items-center justify-between">
+                        <h3
+                          className={`text-sm font-extrabold tracking-tight ${
+                            isCurrentRealMonth ? 'text-[#174e36]' : 'text-[#171c19]'
                           }`}
                         >
-                          {dayItem.dayNumber}
-                        </span>
-
-                        <span className="w-5 h-5 rounded-lg flex items-center justify-center text-[#174e36] opacity-0 group-hover:opacity-100 hover:bg-[#edf5f0] transition-opacity">
-                          <Plus className="w-3.5 h-3.5" />
-                        </span>
+                          {monthNames[mObj.month]} {mObj.year}
+                        </h3>
+                        {isCurrentRealMonth && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#edf5f0] text-[#174e36] border border-[#cfe0d5]">
+                            Aktueller Monat
+                          </span>
+                        )}
                       </div>
 
-                      {/* Event Chips */}
-                      <div className="space-y-1 overflow-y-auto flex-1 max-h-[85px]">
-                        {dayEvents.map((evt) => {
-                          const conf =
-                            CATEGORIES_CONFIG[evt.category] || CATEGORIES_CONFIG['Arbeit'];
+                      {/* Month Grid Cells */}
+                      <div className="grid grid-cols-7 divide-x divide-y divide-[#e8eee9] border-b border-[#e2e8e3]">
+                        {mObj.days.map((dayItem, idx) => {
+                          const dayEvents = filteredEvents.filter((e) =>
+                            isEventOnDate(e.date, e.recurrence, dayItem.dateString)
+                          );
+                          const isOver = dragOverDay === dayItem.dateString;
+                          const isFirstOfMonth = dayItem.isCurrentMonth && dayItem.dayNumber === 1;
+
                           return (
                             <div
-                              key={evt.id}
-                              draggable
-                              onDragStart={(e) => handleDragStartEvent(e, evt)}
-                              onDragEnd={handleDragEnd}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEventModal(evt);
-                              }}
-                              className={`px-2 py-1 rounded-lg text-[11px] font-medium border flex items-center justify-between gap-1 shadow-xs transition-all hover:scale-[0.99] cursor-grab active:cursor-grabbing truncate ${conf.bgLight}`}
-                              title="Klicken zum Bearbeiten, ziehen zum Verschieben"
+                              key={idx}
+                              onClick={() => openEventModal(undefined, dayItem.dateString, '10:00')}
+                              onDragOver={(e) => handleDragOver(e, dayItem.dateString)}
+                              onDragLeave={handleDragLeave}
+                              onDrop={(e) => handleDrop(e, dayItem.dateString)}
+                              className={`min-h-[96px] sm:min-h-[112px] p-1.5 sm:p-2 flex flex-col transition-all cursor-pointer group ${
+                                !dayItem.isCurrentMonth
+                                  ? 'bg-[#f8faf9] text-[#94a3b8]/65'
+                                  : 'bg-white hover:bg-[#f8faf8]'
+                              } ${dayItem.isToday ? 'ring-1 ring-inset ring-[#174e36] bg-[#edf5f0]/50' : ''} ${
+                                isOver ? 'bg-[#edf5f0] ring-2 ring-[#174e36] ring-inset' : ''
+                              }`}
+                              title={`Klicken, um Termin für ${dayItem.dateString} einzutragen`}
                             >
-                              <div className="flex items-center gap-1.5 min-w-0 truncate">
-                                <span className="text-[10px] shrink-0 font-extrabold text-[#171c19]">
-                                  {evt.time}
+                              {/* Day Number Header */}
+                              <div className="flex items-center justify-between mb-1">
+                                <span
+                                  className={`text-xs font-bold h-6 px-1.5 flex items-center justify-center rounded-xl transition-colors ${
+                                    dayItem.isToday
+                                      ? 'bg-[#174e36] text-white shadow-xs min-w-6'
+                                      : !dayItem.isCurrentMonth
+                                      ? 'text-[#94a3b8]/70'
+                                      : isFirstOfMonth
+                                      ? 'text-[#174e36] bg-[#edf5f0]'
+                                      : 'text-[#171c19] group-hover:text-[#174e36]'
+                                  }`}
+                                >
+                                  {isFirstOfMonth
+                                    ? `${dayItem.dayNumber}. ${shortMonthName}`
+                                    : dayItem.dayNumber}
                                 </span>
-                                <span className={`truncate font-semibold ${conf.textDark}`}>{evt.title}</span>
+
+                                <span className="w-5 h-5 rounded-lg flex items-center justify-center text-[#174e36] opacity-0 group-hover:opacity-100 hover:bg-[#edf5f0] transition-opacity">
+                                  <Plus className="w-3.5 h-3.5" />
+                                </span>
                               </div>
-                              {evt.recurrence !== 'none' && (
-                                <Repeat className="w-2.5 h-2.5 opacity-60 shrink-0" />
-                              )}
+
+                              {/* Event Chips */}
+                              <div className="space-y-1 overflow-y-auto no-scrollbar flex-1 max-h-[85px]">
+                                {dayEvents.map((evt) => {
+                                  const conf =
+                                    CATEGORIES_CONFIG[evt.category] || CATEGORIES_CONFIG['Arbeit'];
+                                  return (
+                                    <div
+                                      key={evt.id}
+                                      draggable
+                                      onDragStart={(e) => handleDragStartEvent(e, evt)}
+                                      onDragEnd={handleDragEnd}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openEventModal(evt);
+                                      }}
+                                      className={`px-1.5 sm:px-2 py-1 rounded-lg text-[11px] font-medium border flex items-center justify-between gap-1 shadow-xs transition-all hover:scale-[0.99] cursor-grab active:cursor-grabbing truncate ${conf.bgLight}`}
+                                      title="Klicken zum Bearbeiten, ziehen zum Verschieben"
+                                    >
+                                      <div className="flex items-center gap-1.5 min-w-0 truncate">
+                                        <span className="text-[10px] shrink-0 font-extrabold text-[#171c19]">
+                                          {evt.time}
+                                        </span>
+                                        <span className={`truncate font-semibold ${conf.textDark}`}>{evt.title}</span>
+                                      </div>
+                                      {evt.recurrence !== 'none' && (
+                                        <Repeat className="w-2.5 h-2.5 opacity-60 shrink-0" />
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                           );
                         })}
                       </div>
-                    </div>
+                    </section>
                   );
                 })}
               </div>

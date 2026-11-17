@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { CheckSquare, GripVertical, X } from 'lucide-react';
-import { Task, CATEGORIES_CONFIG } from '../../types';
+import { Task, Category, CATEGORIES_CONFIG } from '../../types';
 
 interface TaskSidebarProps {
   unscheduledTasks: Task[];
@@ -17,6 +17,14 @@ export const TaskSidebar: React.FC<TaskSidebarProps> = ({
   handleDragEnd,
   onClose,
 }) => {
+  const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
+  const categories = Object.keys(CATEGORIES_CONFIG) as Category[];
+
+  const filteredTasks = useMemo(() => {
+    if (selectedCategory === 'all') return unscheduledTasks;
+    return unscheduledTasks.filter((t) => t.category === selectedCategory);
+  }, [unscheduledTasks, selectedCategory]);
+
   return (
     <>
       <div className="fixed inset-0 bg-[#171c19]/30 backdrop-blur-sm z-40 md:hidden transition-opacity" onClick={onClose} />
@@ -35,7 +43,7 @@ export const TaskSidebar: React.FC<TaskSidebarProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#f4f7f5] text-[#52645a] border border-[#d8e2db]">
-              {unscheduledTasks.length}
+              {filteredTasks.length}
             </span>
             <button onClick={onClose} className="md:hidden p-1 text-[#52645a] hover:bg-[#f4f7f5] rounded-md">
               <X className="w-4 h-4" />
@@ -43,14 +51,60 @@ export const TaskSidebar: React.FC<TaskSidebarProps> = ({
           </div>
         </div>
 
+        {/* Scrollable Category Filter Bar */}
+        <div
+          onWheel={(e) => {
+            if (e.deltaY !== 0) {
+              e.currentTarget.scrollLeft += e.deltaY;
+            }
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-2 border-b border-[#e2e8e3] bg-[#fafcfa] overflow-x-auto no-scrollbar shrink-0"
+        >
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('all')}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all shrink-0 cursor-pointer ${
+              selectedCategory === 'all'
+                ? 'bg-[#174e36] text-white border-[#174e36] shadow-xs'
+                : 'bg-white text-[#52645a] border-[#d8e2db] hover:bg-[#f4f7f5] hover:text-[#171c19]'
+            }`}
+          >
+            Alle
+          </button>
+          {categories.map((cat) => {
+            const conf = CATEGORIES_CONFIG[cat];
+            const isSelected = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all shrink-0 flex items-center gap-1 cursor-pointer ${
+                  isSelected
+                    ? 'border-[#174e36] bg-[#edf5f0] text-[#143d2b] ring-1 ring-[#174e36] shadow-xs'
+                    : 'bg-white text-[#52645a] border-[#d8e2db] hover:bg-[#f4f7f5] hover:text-[#171c19]'
+                }`}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: conf.color }}
+                />
+                <span>{conf.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
       {/* Task list for dragging into calendar */}
-      <div className="flex-1 overflow-y-auto p-2.5 space-y-2 bg-[#f8faf8]">
-        {unscheduledTasks.length === 0 ? (
+      <div className="flex-1 overflow-y-auto no-scrollbar p-2.5 space-y-2 bg-[#f8faf8]">
+        {filteredTasks.length === 0 ? (
           <div className="text-center py-10 text-[#6b7d72] text-xs">
-            Keine offenen Aufgaben.
+            {selectedCategory === 'all'
+              ? 'Keine offenen Aufgaben.'
+              : `Keine offenen Aufgaben in „${selectedCategory}“.`}
           </div>
         ) : (
-          unscheduledTasks.map((task) => {
+          filteredTasks.map((task) => {
             const conf =
               CATEGORIES_CONFIG[task.category] || CATEGORIES_CONFIG['Arbeit'];
             const isBeingDragged = draggedItem?.id === task.id;
